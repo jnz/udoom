@@ -35,7 +35,7 @@
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-
+extern LTDC_HandleTypeDef hltdc_discovery;
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
@@ -157,6 +157,10 @@ void SysTick_Handler(void)
 {
 }*/
 
+void LTDC_IRQHandler(void)
+{
+  HAL_LTDC_IRQHandler(&hltdc_discovery);
+}
 
 /**
   * @}

@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "stm32f769i_discovery_sdram.h": "c"
+        "stm32f769i_discovery_sdram.h": "c",
+        "stm32f7xx.h": "c",
+        "stm32f769i_discovery_lcd.h": "c"
     }
 }
