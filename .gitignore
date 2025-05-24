@@ -1,0 +1,10 @@
+build/*.o
+build/*.d
+firmware.bin
+firmware.dmp
+firmware.elf
+firmware.hex
+firmware.list
+firmware.map
+config.mk
+DOOM1.WAD

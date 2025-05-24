@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "STM32F7 OpenOCD Debug",
+      "type": "cortex-debug",
+      "request": "launch",
+      "servertype": "openocd",
+      "cwd": "${workspaceFolder}",
+      "executable": "firmware.elf",
+      "device": "STM32F769NIH6",
+      "configFiles": [
+        "interface/stlink.cfg",
+        "target/stm32f7x.cfg"
+      ],
+      "runToEntryPoint": "main",
+      "preLaunchTask": "build",
+      "svdFile": "${workspaceFolder}/ST/STM32F769.svd"
+    }
+  ]
+}
