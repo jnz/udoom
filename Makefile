@@ -13,8 +13,8 @@ TARGET = udoom
 
 -include config.mk
 
-ifeq ($(TOOLCHAIN_ROOT),)
-	$(error TOOLCHAIN_ROOT is not defined. Please set TOOLCHAIN_ROOT in config.mk)
+ifndef TOOLCHAIN_ROOT
+$(error TOOLCHAIN_ROOT is not defined. Please set TOOLCHAIN_ROOT in a config.mk file)
 endif
 
 Q ?= @
