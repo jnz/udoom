@@ -3,6 +3,11 @@
 #include "stm32f769i_discovery.h"
 #include "stm32f769i_discovery_lcd.h"
 #include "stm32f769i_discovery_sdram.h"
+/* <mass storage> */
+#include "ff.h"
+#include "ff_gen_drv.h"
+#include "sd_diskio.h"
+/* </mass storage> */
 
 #define FRAMEBUFFER_WIDTH  800
 #define FRAMEBUFFER_HEIGHT 480
@@ -19,6 +24,8 @@ extern LTDC_HandleTypeDef hltdc_discovery;
 
 extern void SystemClock_Config(void);
 extern void CPU_CACHE_Enable(void);
+
+static void sdcard_test(void);
 
 int main(void)
 {
@@ -41,6 +48,9 @@ int main(void)
 
     memset((void *)g_fblist[0], 0, FRAMEBUFFER_HEIGHT * FRAMEBUFFER_WIDTH * BYTES_PER_PIXEL);
     memset((void *)g_fblist[1], 0, FRAMEBUFFER_HEIGHT * FRAMEBUFFER_WIDTH * BYTES_PER_PIXEL);
+
+    sdcard_test();
+    HAL_Delay(10000); // wait until frame swap
 
     int x = 0;
     int y = 0;
@@ -83,4 +93,47 @@ void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
         BSP_LED_Toggle(LED2);
     }
     HAL_LTDC_ProgramLineEvent(hltdc, 0);
+}
+
+static void sdcard_test(void)
+{
+    FATFS fs;
+    FIL fil;
+    UINT br;
+    uint8_t buf[6];
+    char path[64];
+
+    BSP_LCD_DisplayStringAtLine(0, (uint8_t *)"Init SD...");
+
+    if (BSP_SD_Init() != MSD_OK) {
+        BSP_LCD_DisplayStringAtLine(1, (uint8_t *)"SD init failed!");
+        return;
+    }
+
+    if (FATFS_LinkDriver(&SD_Driver, path) != 0) {
+        BSP_LCD_DisplayStringAtLine(1, (uint8_t *)"Link driver failed!");
+        return;
+    }
+
+    if (f_mount(&fs, "", 1) != FR_OK) {
+        BSP_LCD_DisplayStringAtLine(1, (uint8_t *)"Mount failed!");
+        return;
+    }
+
+    BSP_LCD_DisplayStringAtLine(1, (uint8_t *)"Mounted. Reading...");
+
+    if (f_open(&fil, "JAN.TXT", FA_READ) != FR_OK) {
+        BSP_LCD_DisplayStringAtLine(2, (uint8_t *)"JAN.TXT not found.");
+        return;
+    }
+
+    if (f_read(&fil, buf, sizeof(buf)-1, &br) == FR_OK && br > 0) {
+        BSP_LCD_DisplayStringAtLine(3, (uint8_t *)"Read OK.");
+        buf[sizeof(buf)-1] = 0;
+        BSP_LCD_DisplayStringAtLine(4, (uint8_t *)buf);
+    } else {
+        BSP_LCD_DisplayStringAtLine(3, (uint8_t *)"Read failed.");
+    }
+
+    f_close(&fil);
 }

@@ -79,6 +79,7 @@ default: all
 # App source directories
 APP_SUBDIRS += \
 	./src \
+	./src/storage \
 	$(HAL_DIR)/Src \
 	$(ADDITIONAL_DIR) \
 	$(BSP_DIR) \
