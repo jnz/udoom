@@ -8,3 +8,4 @@ firmware.list
 firmware.map
 config.mk
 DOOM1.WAD
+tags
