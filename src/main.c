@@ -25,7 +25,7 @@ extern LTDC_HandleTypeDef hltdc_discovery;
 extern void SystemClock_Config(void);
 extern void CPU_CACHE_Enable(void);
 
-static void sdcard_test(void);
+static int sdcard_test_wad(void); /* helper function to check for valid doom1.wad */
 
 int main(void)
 {
@@ -49,8 +49,14 @@ int main(void)
     memset((void *)g_fblist[0], 0, FRAMEBUFFER_HEIGHT * FRAMEBUFFER_WIDTH * BYTES_PER_PIXEL);
     memset((void *)g_fblist[1], 0, FRAMEBUFFER_HEIGHT * FRAMEBUFFER_WIDTH * BYTES_PER_PIXEL);
 
-    sdcard_test();
-    HAL_Delay(10000); // wait until frame swap
+    if (sdcard_test_wad() != 0)
+    {
+        while (1) { HAL_Delay(1000); } // wait forever
+    }
+    else
+    {
+        HAL_Delay(1000); // wait a bit
+    }
 
     int x = 0;
     int y = 0;
@@ -95,45 +101,61 @@ void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
     HAL_LTDC_ProgramLineEvent(hltdc, 0);
 }
 
-static void sdcard_test(void)
+static int sdcard_test_wad(void)
 {
     FATFS fs;
     FIL fil;
     UINT br;
-    uint8_t buf[6];
+    uint8_t buf[4];
     char path[64];
+    int success = -1;
 
     BSP_LCD_DisplayStringAtLine(0, (uint8_t *)"Init SD...");
 
-    if (BSP_SD_Init() != MSD_OK) {
+    if (BSP_SD_Init() != MSD_OK)
+    {
         BSP_LCD_DisplayStringAtLine(1, (uint8_t *)"SD init failed!");
-        return;
+        return success;
     }
 
-    if (FATFS_LinkDriver(&SD_Driver, path) != 0) {
+    if (FATFS_LinkDriver(&SD_Driver, path) != 0)
+    {
         BSP_LCD_DisplayStringAtLine(1, (uint8_t *)"Link driver failed!");
-        return;
+        return success;
     }
 
-    if (f_mount(&fs, "", 1) != FR_OK) {
+    if (f_mount(&fs, "", 1) != FR_OK)
+    {
         BSP_LCD_DisplayStringAtLine(1, (uint8_t *)"Mount failed!");
-        return;
+        return success;
     }
 
     BSP_LCD_DisplayStringAtLine(1, (uint8_t *)"Mounted. Reading...");
 
-    if (f_open(&fil, "JAN.TXT", FA_READ) != FR_OK) {
-        BSP_LCD_DisplayStringAtLine(2, (uint8_t *)"JAN.TXT not found.");
-        return;
+    if (f_open(&fil, "DOOM1.WAD", FA_READ) != FR_OK)
+    {
+        BSP_LCD_DisplayStringAtLine(2, (uint8_t *)"DOOM1.WAD not found on root of SD card (FAT32).");
+        return success;
     }
 
-    if (f_read(&fil, buf, sizeof(buf)-1, &br) == FR_OK && br > 0) {
-        BSP_LCD_DisplayStringAtLine(3, (uint8_t *)"Read OK.");
-        buf[sizeof(buf)-1] = 0;
-        BSP_LCD_DisplayStringAtLine(4, (uint8_t *)buf);
-    } else {
+    if (f_read(&fil, buf, sizeof(buf), &br) == FR_OK && br > 0)
+    {
+        if (buf[0] == 'I' && buf[1] == 'W' && buf[2] == 'A' && buf[3] == 'D')
+        {
+            BSP_LCD_DisplayStringAtLine(2, (uint8_t *)"Valid DOOM1.WAD found!");
+            success = 0;
+        }
+        else
+        {
+            BSP_LCD_DisplayStringAtLine(2, (uint8_t *)"DOOM1.WAD not valid.");
+        }
+    }
+    else
+    {
         BSP_LCD_DisplayStringAtLine(3, (uint8_t *)"Read failed.");
     }
 
     f_close(&fil);
+    return success;
 }
+
