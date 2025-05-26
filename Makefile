@@ -41,7 +41,7 @@ LINKER_SCRIPT   := $(ADDITIONAL_DIR)/STM32F769NIHx_FLASH.ld
 APP_CPP_FLAGS   += -DUSE_HAL_DRIVER -DSTM32F769xx
 APP_CPP_FLAGS   += -DUSE_FULL_LL_DRIVER
 APP_CPP_FLAGS   += -nostdlib -ffreestanding
-# APP_CPP_FLAGS   += -DDATA_IN_ExtSDRAM
+APP_CPP_FLAGS   += -D_GNU_SOURCE
 
 # -MMD: to autogenerate dependencies for make
 # -MP: These dummy rules work around errors make gives if you remove header
@@ -65,7 +65,7 @@ WARNING_CHECKS  += -Wframe-larger-than=$(GCC_STACK_WARNING_BYTES)
 WARNING_CHECKS  += -Wstack-usage=$(GCC_STACK_WARNING_BYTES)
 WARNING_CHECKS  += -Wdouble-promotion
 WARNING_CHECKS  += -Wpointer-arith
-# WARNING_CHECKS  += -Wformat=2
+WARNING_CHECKS  += -Wno-format # re-enable this later, but for now we trust the doom printfs
 WARNING_CHECKS  += -Wmissing-include-dirs
 WARNING_CHECKS  += -Wwrite-strings
 WARNING_CHECKS  += -Wlogical-op
@@ -82,6 +82,7 @@ APP_SUBDIRS += \
 	./src \
 	./src/storage \
 	./doomgeneric \
+	./doomgeneric/stm32f7 \
 	$(HAL_DIR)/Src \
 	$(ADDITIONAL_DIR) \
 	$(BSP_DIR) \

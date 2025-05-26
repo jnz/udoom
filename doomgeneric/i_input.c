@@ -48,6 +48,7 @@ int vanilla_keyboard_mapping = 1;
 static int shiftdown = 0;
 
 // Lookup table for mapping AT keycodes to their doom keycode
+#if 0
 static const char at_to_doom[] =
 {
     /* 0x00 */ 0x00,
@@ -179,6 +180,7 @@ static const char at_to_doom[] =
     /* 0x7e */ 0x0,
     /* 0x7f */ KEY_FIRE, //KEY_RCTRL,
 };
+#endif
 
 // Lookup table for mapping ASCII characters to their equivalent when
 // shift is pressed on an American layout keyboard:

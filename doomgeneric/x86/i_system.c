@@ -16,27 +16,8 @@
 //
 
 
-
-#include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 
-#include <stdarg.h>
-
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#else
-#ifndef STM32F769xx
-#include <unistd.h>
-#endif
-#endif
-
-#ifdef ORIGCODE
-#include "SDL.h"
-#endif
-
-#include "config.h"
 
 #include "deh_str.h"
 #include "doomtype.h"
@@ -53,37 +34,14 @@
 #include "w_wad.h"
 #include "z_zone.h"
 
-#ifdef __MACOSX__
-#include <CoreFoundation/CFUserNotification.h>
-#endif
-
 #define DEFAULT_RAM 6 /* MiB */
 #define MIN_RAM     6  /* MiB */
 
 
-typedef struct atexit_listentry_s atexit_listentry_t;
-
-struct atexit_listentry_s
-{
-    atexit_func_t func;
-    boolean run_on_error;
-    atexit_listentry_t *next;
-};
-
-static atexit_listentry_t *exit_funcs = NULL;
-
 void I_AtExit(atexit_func_t func, boolean run_on_error)
 {
-#ifndef STM32F769xx
-    atexit_listentry_t *entry;
-
-    entry = malloc(sizeof(*entry));
-
-    entry->func = func;
-    entry->run_on_error = run_on_error;
-    entry->next = exit_funcs;
-    exit_funcs = entry;
-#endif
+    (void) func;
+    (void) run_on_error;
 }
 
 // Tactile feedback function, probably used for the Logitech Cyberman
@@ -95,16 +53,10 @@ void I_Tactile(int on, int off, int total)
 // Zone memory auto-allocation function that allocates the zone size
 // by trying progressively smaller zone sizes until one is found that
 // works.
-// [jnz] For the microcontroller port this is just a fixed memory lump.
-#warning "Move into linker script"
-#define ZONE_MEM_ADDRESS     0xC02EE000
+
 static byte *AutoAllocMemory(int *size, int default_ram, int min_ram)
 {
-    (void)default_ram;
-    (void)min_ram;
-    uint32_t zonemem = ZONE_MEM_ADDRESS;
-    *size = default_ram * 1024 * 1024;
-    return (byte*) zonemem;
+    return zonemem;
 }
 
 byte *I_ZoneBase (int *size)
@@ -134,7 +86,7 @@ byte *I_ZoneBase (int *size)
 
     zonemem = AutoAllocMemory(size, default_ram, min_ram);
 
-    printf("zone memory: %p, %x allocated for zone\n",
+    printf("zone memory: %p, %x allocated for zone\n", 
            zonemem, *size);
 
     return zonemem;
@@ -168,7 +120,7 @@ void I_PrintStartupBanner(char *gamedescription)
     I_PrintDivider();
     I_PrintBanner(gamedescription);
     I_PrintDivider();
-
+    
     printf(
     " " PACKAGE_NAME " is free software, covered by the GNU General Public\n"
     " License.  There is NO warranty; not even for MERCHANTABILITY or FITNESS\n"
@@ -178,7 +130,7 @@ void I_PrintStartupBanner(char *gamedescription)
     I_PrintDivider();
 }
 
-//
+// 
 // I_ConsoleStdout
 //
 // Returns true if stdout is a real console, false if it is a file
@@ -225,8 +177,8 @@ void I_Quit (void)
     atexit_listentry_t *entry;
 
     // Run through all exit functions
-
-    entry = exit_funcs;
+ 
+    entry = exit_funcs; 
 
     while (entry != NULL)
     {
@@ -246,17 +198,14 @@ void I_Quit (void)
 
 // returns non-zero if zenity is available
 
-#ifndef STM32F769xx
 static int ZenityAvailable(void)
 {
     return system(ZENITY_BINARY " --help >/dev/null 2>&1") == 0;
 }
-#endif
 
 // Escape special characters in the given string so that they can be
 // safely enclosed in shell quotes.
 
-#ifndef STM32F769xx
 static char *EscapeShellString(char *string)
 {
     char *result;
@@ -297,11 +246,9 @@ static char *EscapeShellString(char *string)
 
     return result;
 }
-#endif
 
 // Open a native error box with a message using zenity
 
-#ifndef STM32F769xx
 static int ZenityErrorBox(char *message)
 {
     int result;
@@ -328,7 +275,6 @@ static int ZenityErrorBox(char *message)
 
     return result;
 }
-#endif
 
 #endif /* !defined(_WIN32) && !defined(__MACOSX__) && !defined(__DJGPP__) */
 
@@ -337,15 +283,10 @@ static int ZenityErrorBox(char *message)
 // I_Error
 //
 
-#ifndef STM32F769xx
 static boolean already_quitting = false;
-#endif
 
 void I_Error (char *error, ...)
 {
-#ifdef STM32F769xx
-    while(1) {}
-#else
     char msgbuf[512];
     va_list argptr;
     atexit_listentry_t *entry;
@@ -458,10 +399,8 @@ void I_Error (char *error, ...)
     {
     }
 #endif
-#endif
 }
 
-#ifndef STM32F769xx
 //
 // Read Access Violation emulation.
 //
@@ -491,14 +430,9 @@ static const unsigned char mem_dump_dosbox[DOS_MEM_DUMP_SIZE] = {
 static unsigned char mem_dump_custom[DOS_MEM_DUMP_SIZE];
 
 static const unsigned char *dos_mem_dump = mem_dump_dos622;
-#endif
 
 boolean I_GetMemoryValue(unsigned int offset, void *value, int size)
 {
-#ifdef STM32F769xx
-    while(1) {}
-    return false;
-#else
     static boolean firsttime = true;
 
     if (firsttime)
@@ -571,6 +505,5 @@ boolean I_GetMemoryValue(unsigned int offset, void *value, int size)
     }
 
     return false;
-#endif
 }
 

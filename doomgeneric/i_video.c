@@ -22,9 +22,6 @@
 //
 //-----------------------------------------------------------------------------
 
-static const char
-rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
-
 #include "config.h"
 #include "v_video.h"
 #include "m_argv.h"
@@ -266,14 +263,15 @@ void I_UpdateNoBlit (void)
 void I_FinishUpdate (void)
 {
     int y;
-    int x_offset, y_offset, x_offset_end;
+    int x_offset, x_offset_end;
+    // int y_offset;
     unsigned char *line_in, *line_out;
 
     /* Offsets in case FB is bigger than DOOM */
     /* 600 = s_Fb heigt, 200 screenheight */
     /* 600 = s_Fb heigt, 200 screenheight */
     /* 2048 =s_Fb width, 320 screenwidth */
-    y_offset     = (((s_Fb.yres - (SCREENHEIGHT * fb_scaling)) * s_Fb.bits_per_pixel/8)) / 2;
+    // y_offset     = (((s_Fb.yres - (SCREENHEIGHT * fb_scaling)) * s_Fb.bits_per_pixel/8)) / 2;
     x_offset     = (((s_Fb.xres - (SCREENWIDTH  * fb_scaling)) * s_Fb.bits_per_pixel/8)) / 2; // XXX: siglent FB hack: /4 instead of /2, since it seems to handle the resolution in a funny way
     //x_offset     = 0;
     x_offset_end = ((s_Fb.xres - (SCREENWIDTH  * fb_scaling)) * s_Fb.bits_per_pixel/8) - x_offset;

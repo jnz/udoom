@@ -70,7 +70,7 @@
 
 #include "p_setup.h"
 #include "r_local.h"
-// #include "statdump.h"
+#include "statdump.h"
 
 #include "d_main.h"
 
@@ -1791,13 +1791,11 @@ void D_DoomMain (void)
     if (gamemode == commercial && W_CheckNumForName("map01") < 0)
         storedemo = true;
 
-#ifndef STM32F769xx
     if (M_CheckParmWithArgs("-statdump", 1))
     {
         I_AtExit(StatDump, true);
-        DEH_printf("statdump not supported.\n");
+        DEH_printf("External statistics registered.\n");
     }
-#endif
 
     //!
     // @arg <x>

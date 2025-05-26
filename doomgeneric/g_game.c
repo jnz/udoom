@@ -49,9 +49,7 @@
 #include "hu_stuff.h"
 #include "st_stuff.h"
 #include "am_map.h"
-#ifndef STM32F769xx
 #include "statdump.h"
-#endif
 
 // Needs access to LFB.
 #include "v_video.h"
@@ -1484,9 +1482,7 @@ void G_DoCompleted (void)
     viewactive = false;
     automapactive = false;
 
-#ifndef STM32F769xx
     StatCopy(&wminfo);
-#endif
 
     WI_Start (&wminfo);
 }
@@ -1551,7 +1547,6 @@ void G_LoadGame (char* name)
 
 void G_DoLoadGame (void)
 {
-#ifndef STM32F769xx
     int savedleveltime;
 
     gameaction = ga_nothing;
@@ -1594,7 +1589,6 @@ void G_DoLoadGame (void)
 
     // draw the pattern into the back screen
     R_FillBackScreen ();
-#endif
 }
 
 
@@ -1615,7 +1609,6 @@ G_SaveGame
 
 void G_DoSaveGame (void)
 {
-#ifndef STM32F769xx
     char *savegame_file;
     char *temp_savegame_file;
     char *recovery_savegame_file;
@@ -1689,7 +1682,6 @@ void G_DoSaveGame (void)
 
     // draw the pattern into the back screen
     R_FillBackScreen ();
-#endif
 }
 
 

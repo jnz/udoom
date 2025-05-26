@@ -77,11 +77,6 @@ int main(void)
     return 0;
 }
 
-void DG_Init()
-{
-
-}
-
 void DG_DrawFrame()
 {
     g_fbready = 1; // indicate that we can swap the frame
@@ -154,26 +149,3 @@ static int sdcard_test_wad(void)
 }
 #endif
 
-void DG_SleepMs(uint32_t ms)
-{
-    HAL_Delay(ms);
-}
-
-uint32_t DG_GetTicksMs()
-{
-    return HAL_GetTick();
-}
-
-int DG_GetKey(int* pressed, unsigned char* key)
-{
-    // This is a placeholder function. In a real application, you would implement
-    // key handling logic here, possibly using an interrupt or polling method.
-    *pressed = 0; // No key pressed
-    *key = 0;     // No key value
-    return 0;    // No key event
-}
-
-void DG_SetWindowTitle(const char * title)
-{
-    // N/A
-}
