@@ -41,7 +41,7 @@ LINKER_SCRIPT   := $(ADDITIONAL_DIR)/STM32F769NIHx_FLASH.ld
 APP_CPP_FLAGS   += -DUSE_HAL_DRIVER -DSTM32F769xx
 APP_CPP_FLAGS   += -DUSE_FULL_LL_DRIVER
 APP_CPP_FLAGS   += -nostdlib -ffreestanding
-APP_CPP_FLAGS   += -D_GNU_SOURCE
+APP_CPP_FLAGS   += -D_DEFAULT_SOURCE  # only to enable strdup()
 
 # -MMD: to autogenerate dependencies for make
 # -MP: These dummy rules work around errors make gives if you remove header
