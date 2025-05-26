@@ -21,8 +21,8 @@ Q ?= @
 
 TARGET_COMPILER ?= gcc
 # default compiler optimization level:
-export OPTIMIZE_LEVEL ?= g
-APP_CPP_FLAGS   += -g3
+export OPTIMIZE_LEVEL ?= 0
+APP_CPP_FLAGS   += -g3 -fno-builtin
 
 APPNAME         := firmware
 OBJDIR          := build
@@ -65,12 +65,13 @@ WARNING_CHECKS  += -Wframe-larger-than=$(GCC_STACK_WARNING_BYTES)
 WARNING_CHECKS  += -Wstack-usage=$(GCC_STACK_WARNING_BYTES)
 WARNING_CHECKS  += -Wdouble-promotion
 WARNING_CHECKS  += -Wpointer-arith
-WARNING_CHECKS  += -Wformat=2
+# WARNING_CHECKS  += -Wformat=2
 WARNING_CHECKS  += -Wmissing-include-dirs
 WARNING_CHECKS  += -Wwrite-strings
 WARNING_CHECKS  += -Wlogical-op
 WARNING_CHECKS  += -Wunreachable-code
 WARNING_CHECKS  += -Wno-unknown-pragmas
+WARNING_CHECKS  += -Wno-discarded-qualifiers
 WARNING_CHECKS  += -Wvla
 WARNING_CHECKS  += -Wdate-time
 
@@ -80,6 +81,7 @@ default: all
 APP_SUBDIRS += \
 	./src \
 	./src/storage \
+	./doomgeneric \
 	$(HAL_DIR)/Src \
 	$(ADDITIONAL_DIR) \
 	$(BSP_DIR) \
@@ -91,6 +93,7 @@ APP_SUBDIRS += \
 # Include directories
 APP_INCLUDE_PATH += \
   -I./inc \
+  -I./doomgeneric \
   -I$(CMSIS_DIR)/Include \
   -I$(CMSIS_DIR)/Device/ST/STM32F7xx/Include \
   -I$(HAL_DIR)/Inc \
@@ -114,7 +117,7 @@ COMPILER_FLAGS  += ${WARNING_CHECKS} -c
 COMPILER_FLAGS  += -MMD ${CPP_FLAGS} ${ARCH_FLAGS}
 ASM_FLAGS       = -x assembler-with-cpp ${COMPILER_FLAGS}
 LINK_FLAGS      = -Wl,--gc-sections -T $(LINKER_SCRIPT) ${ARCH_FLAGS} -Wl,-Map=${APPNAME}.map
-LINK_FLAGS      += -nostartfiles -nostdlib
+LINK_FLAGS      += -nostartfiles -nostdlib -nodefaultlibs
 
 OC              := ${TOOLCHAIN_ROOT}${CROSS_COMPILE}objcopy
 OD              := ${TOOLCHAIN_ROOT}${CROSS_COMPILE}objdump

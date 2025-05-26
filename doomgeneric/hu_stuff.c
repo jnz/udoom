@@ -526,6 +526,8 @@ boolean HU_Responder(event_t *ev)
     for (i=0 ; i<MAXPLAYERS ; i++)
 	numplayers += playeringame[i];
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wlogical-op"
     if (ev->data1 == KEY_RSHIFT)
     {
 	return false;
@@ -535,6 +537,7 @@ boolean HU_Responder(event_t *ev)
 	altdown = ev->type == ev_keydown;
 	return false;
     }
+#pragma GCC diagnostic pop
 
     if (ev->type != ev_keydown)
 	return false;

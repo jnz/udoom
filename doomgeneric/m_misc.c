@@ -57,7 +57,9 @@ void M_MakeDirectory(char *path)
 #ifdef _WIN32
     mkdir(path);
 #else
-    mkdir(path, 0755);
+    #ifndef STM32F769xx
+        mkdir(path, 0755);
+    #endif
 #endif
 }
 
@@ -289,6 +291,7 @@ char *M_StrCaseStr(char *haystack, char *needle)
 // allocated.
 //
 
+#ifndef STM32F769xx
 char *M_StringDuplicate(const char *orig)
 {
     char *result;
@@ -303,6 +306,7 @@ char *M_StringDuplicate(const char *orig)
 
     return result;
 }
+#endif
 
 //
 // String replace function.

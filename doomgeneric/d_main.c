@@ -70,7 +70,7 @@
 
 #include "p_setup.h"
 #include "r_local.h"
-#include "statdump.h"
+// #include "statdump.h"
 
 #include "d_main.h"
 
@@ -1363,7 +1363,11 @@ void D_DoomMain (void)
     I_AtExit(M_SaveDefaults, false);
 
     // Find main IWAD file and load it.
+#ifdef STM32F769xx
+    iwadfile = "DOOM1.WAD";
+#else
     iwadfile = D_FindIWAD(IWAD_MASK_DOOM, &gamemission);
+#endif
 
     // None found?
 
@@ -1787,11 +1791,13 @@ void D_DoomMain (void)
     if (gamemode == commercial && W_CheckNumForName("map01") < 0)
         storedemo = true;
 
+#ifndef STM32F769xx
     if (M_CheckParmWithArgs("-statdump", 1))
     {
         I_AtExit(StatDump, true);
-        DEH_printf("External statistics registered.\n");
+        DEH_printf("statdump not supported.\n");
     }
+#endif
 
     //!
     // @arg <x>
