@@ -774,6 +774,7 @@ void R_DrawPlayerSprites (void)
 // R_SortVisSprites
 //
 vissprite_t	vsprsortedhead;
+vissprite_t		unsorted;
 
 
 void R_SortVisSprites (void)
@@ -782,7 +783,6 @@ void R_SortVisSprites (void)
     int			count;
     vissprite_t*	ds;
     vissprite_t*	best;
-    vissprite_t		unsorted;
     fixed_t		bestscale;
 
     count = vissprite_p - vissprites;
