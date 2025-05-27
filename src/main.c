@@ -6,6 +6,7 @@
 /* <mass storage> */
 #include "ff_gen_drv.h"
 #include "sd_diskio.h"
+#include "fatfs_stdio.h" // for testing
 /* </mass storage> */
 #include "doomgeneric.h"
 
@@ -22,13 +23,15 @@ static int g_fbcur = 1; // start in invisible buffer
 static int g_fbready = 0; // safe to swap?
 extern LTDC_HandleTypeDef hltdc_discovery;
 
-extern void SystemClock_Config(void);
-extern void CPU_CACHE_Enable(void);
-
 extern pixel_t* DG_ScreenBuffer;
+
+static void MPU_Config(void);
+static void CPU_CACHE_Enable(void);
+static void SystemClock_Config(void);
 
 int main(void)
 {
+    MPU_Config();
     CPU_CACHE_Enable();
     HAL_Init();
     SystemClock_Config();
@@ -49,11 +52,18 @@ int main(void)
     memset((void *)g_fblist[0], 0, FRAMEBUFFER_HEIGHT * FRAMEBUFFER_WIDTH * BYTES_PER_PIXEL);
     memset((void *)g_fblist[1], 0, FRAMEBUFFER_HEIGHT * FRAMEBUFFER_WIDTH * BYTES_PER_PIXEL);
 
-    if (BSP_SD_Init() != MSD_OK)
+    uint32_t zonemem = 0xC02EE000;
+    uint8_t* buffer = (uint8_t*)zonemem;
+    FFILE* f = ffopen("DOOM1.WAD", "r");
+    if (f)
     {
-        BSP_LCD_DisplayStringAtLine(1, (uint8_t *)"SD init failed!");
-        while (1) {}
+        // int ss = ffseek(f, 4175796, 0);
+        // size_t bytes = ffread(buffer, 1, 20224, f);
+        size_t btr = 1024 * 2;
+        size_t bytes = ffread(buffer, 1, btr, f);
+        ffclose(f);
     }
+    while (1) {}
 
     /* Prepare doomgeneric */
     char *argv[] = { "doom.exe" };
@@ -97,55 +107,151 @@ void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
     HAL_LTDC_ProgramLineEvent(hltdc, 0);
 }
 
-#if 0
-static int sdcard_test_wad(void)
+/**
+  * @brief  CPU L1-Cache enable.
+  * @param  None
+  * @retval None
+  */
+static void CPU_CACHE_Enable(void)
 {
-    FATFS fs;
-    FIL fil;
-    UINT br;
-    uint8_t buf[4];
-    char path[64];
-    int success = -1;
+  /* Enable I-Cache */
+  SCB_EnableICache();
 
-    if (FATFS_LinkDriver(&SD_Driver, path) != 0)
-    {
-        BSP_LCD_DisplayStringAtLine(1, (uint8_t *)"Link driver failed!");
-        return success;
-    }
-
-    if (f_mount(&fs, "", 1) != FR_OK)
-    {
-        BSP_LCD_DisplayStringAtLine(1, (uint8_t *)"Mount failed!");
-        return success;
-    }
-
-    BSP_LCD_DisplayStringAtLine(1, (uint8_t *)"Mounted. Reading...");
-
-    if (f_open(&fil, "DOOM1.WAD", FA_READ) != FR_OK)
-    {
-        BSP_LCD_DisplayStringAtLine(2, (uint8_t *)"DOOM1.WAD not found on root of SD card (FAT32).");
-        return success;
-    }
-
-    if (f_read(&fil, buf, sizeof(buf), &br) == FR_OK && br > 0)
-    {
-        if (buf[0] == 'I' && buf[1] == 'W' && buf[2] == 'A' && buf[3] == 'D')
-        {
-            BSP_LCD_DisplayStringAtLine(2, (uint8_t *)"Valid DOOM1.WAD found!");
-            success = 0;
-        }
-        else
-        {
-            BSP_LCD_DisplayStringAtLine(2, (uint8_t *)"DOOM1.WAD not valid.");
-        }
-    }
-    else
-    {
-        BSP_LCD_DisplayStringAtLine(3, (uint8_t *)"Read failed.");
-    }
-
-    f_close(&fil);
-    return success;
+  /* Enable D-Cache */
+  SCB_EnableDCache();
 }
-#endif
 
+/**
+  * @brief  System Clock Configuration
+  *         The system Clock is configured as follow :
+  *            System Clock source            = PLL (HSE)
+  *            SYSCLK(Hz)                     = 180000000
+  *            HCLK(Hz)                       = 180000000
+  *            AHB Prescaler                  = 1
+  *            APB1 Prescaler                 = 4
+  *            APB2 Prescaler                 = 2
+  *            HSE Frequency(Hz)              = 25000000
+  *            PLL_M                          = 25
+  *            PLL_N                          = 360
+  *            PLL_P                          = 2
+  *            PLL_Q                          = 7
+  *            PLL_R                          = 6
+  *            VDD(V)                         = 3.3
+  *            Main regulator output voltage  = Scale1 mode
+  *            Flash Latency(WS)              = 5
+  * @param  None
+  * @retval None
+  */
+static void SystemClock_Config(void)
+{
+  RCC_ClkInitTypeDef RCC_ClkInitStruct;
+  RCC_OscInitTypeDef RCC_OscInitStruct;
+  HAL_StatusTypeDef ret = HAL_OK;
+
+  /* Enable Power Control clock */
+  __HAL_RCC_PWR_CLK_ENABLE();
+
+  /* The voltage scaling allows optimizing the power consumption when the device is
+     clocked below the maximum system frequency, to update the voltage scaling value
+     regarding system frequency refer to product datasheet.  */
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+
+  /* Enable HSE Oscillator and activate PLL with HSE as source */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 25;
+  RCC_OscInitStruct.PLL.PLLN = 360;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = 7;
+  RCC_OscInitStruct.PLL.PLLR = 6;
+
+  ret = HAL_RCC_OscConfig(&RCC_OscInitStruct);
+  if(ret != HAL_OK)
+  {
+    while(1) { ; }
+  }
+
+  /* Activate the OverDrive to reach the 180 MHz Frequency */
+  ret = HAL_PWREx_EnableOverDrive();
+  if(ret != HAL_OK)
+  {
+    while(1) { ; }
+  }
+
+  /* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2 clocks dividers */
+  RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
+
+  ret = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5);
+  if(ret != HAL_OK)
+  {
+    while(1) { ; }
+  }
+}
+
+
+/**
+  * @brief  Configure the MPU attributes
+  * @param  None
+  * @retval None
+  */
+static void MPU_Config(void)
+{
+  MPU_Region_InitTypeDef MPU_InitStruct;
+
+  /* Disable the MPU */
+  HAL_MPU_Disable();
+
+  /* Configure the MPU as Strongly ordered for not defined regions */
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.BaseAddress = 0x00;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
+  MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.SubRegionDisable = 0x87;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  /* Configure the MPU attributes as WT for SDRAM */
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.BaseAddress = 0xC0000000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_32MB;
+  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER1;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.SubRegionDisable = 0x00;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  /* Configure the MPU attributes FMC control registers */
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.BaseAddress = 0xA0000000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_8KB;
+  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER2;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.SubRegionDisable = 0x0;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+  
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  /* Enable the MPU */
+  HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
+}

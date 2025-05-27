@@ -70,10 +70,20 @@ int ffclose(FFILE *f)
     return res == FR_OK ? 0 : -1;
 }
 
+#define CACHE_LINE_SIZE 32
 size_t ffread(void *ptr, size_t size, size_t nmemb, FFILE *f)
 {
     UINT br = 0;
+
+    // uintptr_t addr = (uintptr_t)ptr;
+    // size_t len = size*nmemb;
+    // uintptr_t addr_aligned = addr & ~(CACHE_LINE_SIZE - 1);
+    // size_t len_aligned = ((addr + len + CACHE_LINE_SIZE - 1) & ~(CACHE_LINE_SIZE - 1)) - addr_aligned;
+
+    // SCB_InvalidateDCache_by_Addr((void *)addr_aligned, len_aligned);
     FRESULT res = f_read(&f->fil, ptr, size * nmemb, &br);
+    // SCB_CleanInvalidateDCache_by_Addr((void *)addr_aligned, len_aligned);
+
     if (res != FR_OK) {
         f->error = 1;
         return 0;

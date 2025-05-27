@@ -201,7 +201,11 @@ wad_file_t *W_AddFile (char *filename)
 		length = header.numlumps*sizeof(filelump_t);
 		fileinfo = Z_Malloc(length, PU_STATIC, 0);
 
-        W_Read(wad_file, header.infotableofs, fileinfo, length);
+        unsigned bytesread = W_Read(wad_file, header.infotableofs, fileinfo, length);
+        if (bytesread != length)
+        {
+            I_Error("Disk read error");
+        }
         newnumlumps += header.numlumps;
     }
 
