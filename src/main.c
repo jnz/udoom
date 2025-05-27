@@ -119,13 +119,14 @@ void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
     {
         // activate the next framebuffer
         LTDC_LAYER(hltdc, 0)->CFBAR = ((uint32_t)g_fblist[g_fbcur]);
+        __DSB();
         __HAL_LTDC_RELOAD_CONFIG(hltdc);
 
         g_fbcur = 1 - g_fbcur;
         g_fbready = 0;
         BSP_LED_Toggle(LED2); /* some developer feedback */
     }
-    HAL_LTDC_ProgramLineEvent(hltdc, 0);
+    HAL_LTDC_ProgramLineEvent(hltdc, 0); // setup next VSYNC callback
 }
 
 /**
