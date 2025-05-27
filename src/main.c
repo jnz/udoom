@@ -12,7 +12,7 @@
 #include "doomgeneric.h" // application specific
 
 // DEFINES
-#define BYTES_PER_PIXEL    4
+#define BYTES_PER_PIXEL  4
 #define SDRAM_BASE       LCD_FB_START_ADDRESS
 #define SDRAM_SIZE       (8 * 1024 * 1024)  // 8 MB
 #define SDRAM_END        (SDRAM_BASE + SDRAM_SIZE)
@@ -22,9 +22,6 @@
 static void MPU_Config(void);
 static void CPU_CACHE_Enable(void);
 static void SystemClock_Config(void);
-// SD Card
-char g_sdpath[4];   // SD logical drive path
-FATFS g_sdfatfs;    // File system object for SD logical drive
 // Double Buffering
 static uint32_t g_fblist[2]; // populated at init
 static int g_fbcur = 1; // start in invisible buffer
@@ -65,12 +62,14 @@ int main(void)
     BSP_LCD_DisplayStringAtLine(line++, "STM32F769I Doom by Jan Zwiener");
     BSP_LCD_DisplayStringAtLine(line++, "Loading .WAD file from SD card...");
     // Mount SD Card
-    if (FATFS_LinkDriver(&SD_Driver, g_sdpath) != 0)
+    char sdpath[4]; // SD logical drive path
+    FATFS sdfatfs;  // File system object for SD logical drive
+    if (FATFS_LinkDriver(&SD_Driver, sdpath) != 0)
     {
         BSP_LCD_DisplayStringAtLine(line++, "Failed to load SD card driver");
         while (1) { HAL_Delay(1000); }
     }
-    FRESULT fr = f_mount(&g_sdfatfs, (TCHAR const *)g_sdpath, 1);
+    FRESULT fr = f_mount(&sdfatfs, (TCHAR const *)sdpath, 1);
     if (fr != FR_OK)
     {
         BSP_LCD_DisplayStringAtLine(line++, "Error: Failed to mount SD card.");
