@@ -1363,11 +1363,7 @@ void D_DoomMain (void)
     I_AtExit(M_SaveDefaults, false);
 
     // Find main IWAD file and load it.
-#ifdef STM32F769xx
-    iwadfile = "DOOM1.WAD";
-#else
     iwadfile = D_FindIWAD(IWAD_MASK_DOOM, &gamemission);
-#endif
 
     // None found?
 
