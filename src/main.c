@@ -103,23 +103,20 @@ int main(void)
     return 0;
 }
 
-/** @brief Give the address and size of the zone memory. */
-void I_GetZoneMemory(uint32_t *zonemem, int* size)
+/** @brief Give the address and size of the zone memory.  */
+uint8_t *I_ZoneBase (int *size)
 {
-    if (zonemem)
-    {
-        // Locate after the two framebuffers:
-        *zonemem = g_fblist[1] + FB_SIZE_BYTES;
-        *size = SDRAM_END - (*zonemem);
-    }
+    uint32_t zonemem = g_fblist[1] + FB_SIZE_BYTES;
+    *size = SDRAM_END - zonemem;
+    return (uint8_t*) zonemem;
 }
 
-void DG_Init()
+void DG_Init() // called by Doom during init
 {
     DG_ScreenBuffer = (pixel_t*)g_fblist[g_fbcur];
 }
 
-void DG_DrawFrame()
+void DG_DrawFrame() // called by Doom at the end of a frame
 {
     g_fbready = 1; // indicate that we can swap the frame
 }

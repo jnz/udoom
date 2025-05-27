@@ -56,14 +56,14 @@ void I_Tactile(int on, int off, int total)
 // Zone memory auto-allocation function that allocates the zone size
 // by trying progressively smaller zone sizes until one is found that
 // works.
-// [jnz] For the microcontroller port this is just a fixed memory lump.
-extern void I_GetZoneMemory(uint32_t *zonemem, int* size);
+#if 0
+// moved to stm32 main.c
 byte *I_ZoneBase (int *size)
 {
-    uint32_t zonemem;
-    I_GetZoneMemory(&zonemem, size);
-    return (byte*) zonemem;
+    *size = 0;
+    return NULL;
 }
+#endif
 
 void I_PrintBanner(char *msg)
 {
