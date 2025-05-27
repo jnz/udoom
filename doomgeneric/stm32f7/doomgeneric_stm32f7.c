@@ -2,11 +2,6 @@
 #include "doomkeys.h"
 #include "doomgeneric.h"
 
-void DG_Init()
-{
-
-}
-
 void DG_SleepMs(uint32_t ms)
 {
     HAL_Delay(ms);
@@ -33,4 +28,10 @@ void DG_DrawFrame()
 {
 
 }
+
+void DG_Init()
+{
+
+}
+
 */

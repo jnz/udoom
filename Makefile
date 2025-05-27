@@ -21,7 +21,7 @@ Q ?= @
 
 TARGET_COMPILER ?= gcc
 # default compiler optimization level:
-export OPTIMIZE_LEVEL ?= 0
+export OPTIMIZE_LEVEL ?= g
 APP_CPP_FLAGS   += -g3 -fno-builtin
 
 APPNAME         := firmware
@@ -81,6 +81,7 @@ default: all
 APP_SUBDIRS += \
 	./src \
 	./src/storage \
+	./src/storage/FatFs \
 	./doomgeneric \
 	./doomgeneric/stm32f7 \
 	$(HAL_DIR)/Src \
@@ -94,6 +95,7 @@ APP_SUBDIRS += \
 # Include directories
 APP_INCLUDE_PATH += \
   -I./inc \
+  -I./src/storage/FatFs \
   -I./doomgeneric \
   -I$(CMSIS_DIR)/Include \
   -I$(CMSIS_DIR)/Device/ST/STM32F7xx/Include \

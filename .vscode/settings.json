@@ -6,6 +6,7 @@
         "fatfs_stdio.h": "c",
         "ff_gen_drv.h": "c",
         "sd_diskio.h": "c",
-        "diskio.h": "c"
+        "diskio.h": "c",
+        "tables.h": "c"
     }
 }

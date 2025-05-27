@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 #include "stm32f7xx.h"
 #include "stm32f769i_discovery.h"
 #include "stm32f769i_discovery_lcd.h"
@@ -6,7 +7,6 @@
 /* <mass storage> */
 #include "ff_gen_drv.h"
 #include "sd_diskio.h"
-#include "fatfs_stdio.h" // for testing
 /* </mass storage> */
 #include "doomgeneric.h"
 
@@ -29,6 +29,9 @@ static void MPU_Config(void);
 static void CPU_CACHE_Enable(void);
 static void SystemClock_Config(void);
 
+char SDPath[4];   /* SD logical drive path */
+FATFS SDFatFS;    /* File system object for SD logical drive */
+
 int main(void)
 {
     MPU_Config();
@@ -36,9 +39,15 @@ int main(void)
     HAL_Init();
     SystemClock_Config();
 
+    // LEDs
+    BSP_LED_Init(LED1);
     BSP_LED_Init(LED2);
+    BSP_LED_On(LED1);
+
+    // SDRAM
     BSP_SDRAM_Init();
 
+    // Display
     BSP_LCD_Init();
     BSP_LCD_LayerDefaultInit(0, g_fblist[0]);
     BSP_LCD_SelectLayer(0);
@@ -46,38 +55,38 @@ int main(void)
     BSP_LCD_SetTransparency(0, 255);
     BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
     BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
-
     HAL_LTDC_ProgramLineEvent(&hltdc_discovery, 0);
-
     memset((void *)g_fblist[0], 0, FRAMEBUFFER_HEIGHT * FRAMEBUFFER_WIDTH * BYTES_PER_PIXEL);
     memset((void *)g_fblist[1], 0, FRAMEBUFFER_HEIGHT * FRAMEBUFFER_WIDTH * BYTES_PER_PIXEL);
 
-    uint32_t zonemem = 0xC02EE000;
-    uint8_t* buffer = (uint8_t*)zonemem;
-    FFILE* f = ffopen("DOOM1.WAD", "r");
-    if (f)
+    // Mount SD Card
+    if (FATFS_LinkDriver(&SD_Driver, SDPath) != 0)
     {
-        // int ss = ffseek(f, 4175796, 0);
-        // size_t bytes = ffread(buffer, 1, 20224, f);
-        size_t btr = 1024 * 2;
-        size_t bytes = ffread(buffer, 1, btr, f);
-        ffclose(f);
+        while (1) {}
     }
-    while (1) {}
+    FRESULT fr = f_mount(&SDFatFS, (TCHAR const *)SDPath, 1);
+    if (fr != FR_OK)
+    {
+        while (1) {}
+    }
 
-    /* Prepare doomgeneric */
+    // MCU init complete
+    BSP_LED_Off(LED1);
+
+    /* Prepare main loop */
     char *argv[] = { "doom.exe" };
     doomgeneric_Create(1, argv);
 
+    int x = 0;
+    int y = 0;
+    int dirx = 3;
+    int diry = 3;
     while (1)
     {
         // Prepare the framebuffer for drawing
-        uint32_t* drawFB = (uint32_t*)g_fblist[g_fbcur];
-        DG_ScreenBuffer = (pixel_t*)drawFB;
-
+        DG_ScreenBuffer = (pixel_t*)g_fblist[g_fbcur];
         doomgeneric_Tick();
 
-        // SCB_CleanDCache_by_Addr((uint32_t*)drawFB, FRAMEBUFFER_WIDTH * FRAMEBUFFER_HEIGHT * BYTES_PER_PIXEL);
         while (g_fbready)
         {
             HAL_Delay(0); // wait until frame swap
@@ -87,11 +96,15 @@ int main(void)
     return 0;
 }
 
+void DG_Init()
+{
+    DG_ScreenBuffer = (pixel_t*)g_fblist[g_fbcur];
+}
+
 void DG_DrawFrame()
 {
     g_fbready = 1; // indicate that we can swap the frame
 }
-
 
 void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
 {
@@ -121,80 +134,55 @@ static void CPU_CACHE_Enable(void)
   SCB_EnableDCache();
 }
 
+// 200 MHz configuration
+static void SystemClock_Config(void)
+{
+    HAL_StatusTypeDef ret = HAL_OK;
+    RCC_ClkInitTypeDef RCC_ClkInitStruct;
+    RCC_OscInitTypeDef RCC_OscInitStruct;
+
+    /* Enable HSE Oscillator and activate PLL with HSE as source */
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+    RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+    RCC_OscInitStruct.PLL.PLLM = 25;
+    RCC_OscInitStruct.PLL.PLLN = 400;
+    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+    RCC_OscInitStruct.PLL.PLLQ = 8;
+    RCC_OscInitStruct.PLL.PLLR = 7;
+
+    ret = HAL_RCC_OscConfig(&RCC_OscInitStruct);
+    if(ret != HAL_OK)
+    {
+        while(1) { ; }
+    }
+
+    ret = HAL_PWREx_EnableOverDrive();
+    if(ret != HAL_OK)
+    {
+        while(1) { ; }
+    }
+
+    /* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2 clocks dividers */
+    RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
+
+    ret = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_6);
+    if(ret != HAL_OK)
+    {
+        while(1) { ; }
+    }
+}
+
 /**
-  * @brief  System Clock Configuration
-  *         The system Clock is configured as follow :
-  *            System Clock source            = PLL (HSE)
-  *            SYSCLK(Hz)                     = 180000000
-  *            HCLK(Hz)                       = 180000000
-  *            AHB Prescaler                  = 1
-  *            APB1 Prescaler                 = 4
-  *            APB2 Prescaler                 = 2
-  *            HSE Frequency(Hz)              = 25000000
-  *            PLL_M                          = 25
-  *            PLL_N                          = 360
-  *            PLL_P                          = 2
-  *            PLL_Q                          = 7
-  *            PLL_R                          = 6
-  *            VDD(V)                         = 3.3
-  *            Main regulator output voltage  = Scale1 mode
-  *            Flash Latency(WS)              = 5
+  * @brief  Configure the MPU attributes
   * @param  None
   * @retval None
   */
-static void SystemClock_Config(void)
-{
-  RCC_ClkInitTypeDef RCC_ClkInitStruct;
-  RCC_OscInitTypeDef RCC_OscInitStruct;
-  HAL_StatusTypeDef ret = HAL_OK;
-
-  /* Enable Power Control clock */
-  __HAL_RCC_PWR_CLK_ENABLE();
-
-  /* The voltage scaling allows optimizing the power consumption when the device is
-     clocked below the maximum system frequency, to update the voltage scaling value
-     regarding system frequency refer to product datasheet.  */
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-
-  /* Enable HSE Oscillator and activate PLL with HSE as source */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 25;
-  RCC_OscInitStruct.PLL.PLLN = 360;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 7;
-  RCC_OscInitStruct.PLL.PLLR = 6;
-
-  ret = HAL_RCC_OscConfig(&RCC_OscInitStruct);
-  if(ret != HAL_OK)
-  {
-    while(1) { ; }
-  }
-
-  /* Activate the OverDrive to reach the 180 MHz Frequency */
-  ret = HAL_PWREx_EnableOverDrive();
-  if(ret != HAL_OK)
-  {
-    while(1) { ; }
-  }
-
-  /* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2 clocks dividers */
-  RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
-
-  ret = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5);
-  if(ret != HAL_OK)
-  {
-    while(1) { ; }
-  }
-}
-
-
 /**
   * @brief  Configure the MPU attributes
   * @param  None
@@ -249,9 +237,10 @@ static void MPU_Config(void)
   MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
   MPU_InitStruct.SubRegionDisable = 0x0;
   MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
-  
+
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
   /* Enable the MPU */
   HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 }
+

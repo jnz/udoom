@@ -31,14 +31,14 @@ ENTRY(Reset_Handler)
 /* Highest address of the user mode stack */
 _estack = 0x20080000;    /* end of RAM */
 /* Generate a link error if heap and stack don't fit into RAM */
-_Min_Heap_Size = 0x200;      /* required amount of heap  */
-_Min_Stack_Size = 0xF00; /* required amount of stack */
+_Min_Heap_Size = 0x600;      /* required amount of heap  */
+_Min_Stack_Size = 0x1000; /* required amount of stack */
 
 /* Specify the memory areas */
 MEMORY
 {
-FLASH (rx)      : ORIGIN = 0x08000000, LENGTH = 2048K
 RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 512K
+FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 2048K
 }
 
 /* Define output sections */

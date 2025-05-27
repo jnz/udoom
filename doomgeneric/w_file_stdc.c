@@ -16,22 +16,11 @@
 //	WAD I/O functions.
 //
 
-#include "fatfs_stdio.h"
+#include <stdio.h>
+
 #include "m_misc.h"
 #include "w_file.h"
 #include "z_zone.h"
-
-#define FILE    FFILE
-#define fopen   ffopen
-#define fclose  ffclose
-#define fread   ffread
-#define fwrite  ffwrite
-#define fseek   ffseek
-#define ftell   fftell
-// #define feof    ffeof
-// #define ferror  fferror
-#define fgetc   ffgetc
-#define fputc   ffputc
 
 typedef struct
 {
@@ -58,7 +47,7 @@ static wad_file_t *W_StdC_OpenFile(char *path)
     result = Z_Malloc(sizeof(stdc_wad_file_t), PU_STATIC, 0);
     result->wad.file_class = &stdc_wad_file;
     result->wad.mapped = NULL;
-    result->wad.length = fflength(fstream);
+    result->wad.length = M_FileLength(fstream);
     result->fstream = fstream;
 
     return &result->wad;
