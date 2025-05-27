@@ -35,6 +35,7 @@
 
 /* Link fopen/fread etc. to fatfs library */
 #include "ff.h"
+#include "stm32f769i_discovery.h"
 
 #define MAX_FILES 4
 #define RESERVED_FILE_HANDLES   8
@@ -147,6 +148,7 @@ int _getentropy(void *buffer, size_t length)
 
 int _read(int file, char *ptr, int len)
 {
+    BSP_LED_Toggle(LED1);
     // Allow reading from stdin via __io_getchar (optional)
     if (file == STDIN_FILENO)
     {

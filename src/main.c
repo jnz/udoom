@@ -77,10 +77,6 @@ int main(void)
     char *argv[] = { "doom.exe" };
     doomgeneric_Create(1, argv);
 
-    int x = 0;
-    int y = 0;
-    int dirx = 3;
-    int diry = 3;
     while (1)
     {
         // Prepare the framebuffer for drawing
