@@ -23,7 +23,7 @@ static int g_fbcur = 1; // start in invisible buffer
 static int g_fbready = 0; // safe to swap?
 extern LTDC_HandleTypeDef hltdc_discovery;
 
-extern pixel_t* DG_ScreenBuffer;
+extern pixel_t* DG_ScreenBuffer; /* */
 
 static void MPU_Config(void);
 static void CPU_CACHE_Enable(void);
@@ -55,28 +55,38 @@ int main(void)
     BSP_LCD_SetTransparency(0, 255);
     BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
     BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
-    HAL_LTDC_ProgramLineEvent(&hltdc_discovery, 0);
+    BSP_LCD_SetBrightness(100); // set brightness to 100%
+
     memset((void *)g_fblist[0], 0, FRAMEBUFFER_HEIGHT * FRAMEBUFFER_WIDTH * BYTES_PER_PIXEL);
     memset((void *)g_fblist[1], 0, FRAMEBUFFER_HEIGHT * FRAMEBUFFER_WIDTH * BYTES_PER_PIXEL);
 
+    int line = 0;
+    BSP_LCD_DisplayStringAtLine(line++, "STM32F769I Doom by Jan Zwiener");
+    BSP_LCD_DisplayStringAtLine(line++, "Loading .WAD file from SD card...");
     // Mount SD Card
     if (FATFS_LinkDriver(&SD_Driver, SDPath) != 0)
     {
-        while (1) {}
+        BSP_LCD_DisplayStringAtLine(line++, "Failed to load SD card driver");
+        while (1) { HAL_Delay(1000); }
     }
     FRESULT fr = f_mount(&SDFatFS, (TCHAR const *)SDPath, 1);
     if (fr != FR_OK)
     {
-        while (1) {}
+        BSP_LCD_DisplayStringAtLine(line++, "Error: Failed to mount SD card.");
+        while (1) { HAL_Delay(1000); }
     }
+    // from now on fopen() and other stdio functions will work with the SD card
 
-    // MCU init complete
-    BSP_LED_Off(LED1);
+    BSP_LCD_DisplayStringAtLine(line++, "Loading Doom...");
+    BSP_LED_Off(LED1); // MCU init complete
 
     /* Prepare main loop */
     char *argv[] = { "doom.exe" };
-    doomgeneric_Create(1, argv);
+    doomgeneric_Create(sizeof(argv)/sizeof(argv[0]), argv);
+    memset((void *)g_fblist[0], 0, FRAMEBUFFER_HEIGHT * FRAMEBUFFER_WIDTH * BYTES_PER_PIXEL);
+    memset((void *)g_fblist[1], 0, FRAMEBUFFER_HEIGHT * FRAMEBUFFER_WIDTH * BYTES_PER_PIXEL);
 
+    HAL_LTDC_ProgramLineEvent(&hltdc_discovery, 0);
     while (1)
     {
         // Prepare the framebuffer for drawing
@@ -102,16 +112,18 @@ void DG_DrawFrame()
     g_fbready = 1; // indicate that we can swap the frame
 }
 
+/** @brief  LTDC line event callback. Ready to draw the next frame.  */
 void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
 {
     if (g_fbready) // ready to swap frames?
     {
+        // activate the next framebuffer
         LTDC_LAYER(hltdc, 0)->CFBAR = ((uint32_t)g_fblist[g_fbcur]);
         __HAL_LTDC_RELOAD_CONFIG(hltdc);
 
         g_fbcur = 1 - g_fbcur;
         g_fbready = 0;
-        BSP_LED_Toggle(LED2);
+        BSP_LED_Toggle(LED2); /* some developer feedback */
     }
     HAL_LTDC_ProgramLineEvent(hltdc, 0);
 }
@@ -130,7 +142,7 @@ static void CPU_CACHE_Enable(void)
   SCB_EnableDCache();
 }
 
-// 200 MHz configuration
+/* The SD card stuff apparently works better with a 200 MHz configuration */
 static void SystemClock_Config(void)
 {
     HAL_StatusTypeDef ret = HAL_OK;

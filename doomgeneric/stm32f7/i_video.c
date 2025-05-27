@@ -29,20 +29,17 @@
 #include "d_main.h"
 #include "i_video.h"
 #include "z_zone.h"
-
 #include "tables.h"
 #include "doomkeys.h"
-
 #include "doomgeneric.h"
 
 #include <stdbool.h>
 #include <stdlib.h>
-
 #include <fcntl.h>
-
 #include <stdarg.h>
-
 #include <sys/types.h>
+
+#include "stm32f769i_discovery_lcd.h"
 
 //#define CMAP256
 
@@ -165,7 +162,7 @@ void cmap_to_fb(uint8_t * out, uint8_t * in, int in_pixels)
         pix = r << s_Fb.red.offset;
         pix |= g << s_Fb.green.offset;
         pix |= b << s_Fb.blue.offset;
-        pix |= 0xFF << s_Fb.transp.offset;
+        pix |= 0xFF << s_Fb.transp.offset; // 0xFF for opaque
 
         for (k = 0; k < fb_scaling; k++) {
             for (j = 0; j < s_Fb.bits_per_pixel/8; j++) {
@@ -182,8 +179,9 @@ void I_InitGraphics (void)
     int i;
 
 	memset(&s_Fb, 0, sizeof(struct FB_ScreenInfo));
-	s_Fb.xres = DOOMGENERIC_RESX;
-	s_Fb.yres = DOOMGENERIC_RESY;
+
+	s_Fb.xres = BSP_LCD_GetXSize();
+	s_Fb.yres = BSP_LCD_GetYSize();
 	s_Fb.xres_virtual = s_Fb.xres;
 	s_Fb.yres_virtual = s_Fb.yres;
 
