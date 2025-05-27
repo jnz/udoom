@@ -40,6 +40,7 @@
 #include <sys/types.h>
 
 #include "stm32f769i_discovery_lcd.h"
+// #define DMA2D_HW_ACCEL
 
 //#define CMAP256
 
@@ -82,6 +83,11 @@ static struct color colors[256];
 
 #endif  // CMAP256
 
+#ifdef DMA2D_HW_ACCEL
+
+static uint32_t dma2d_clut[256]; // palette for DMA2D hardware acceleration
+
+#endif // DMA2D_HW_ACCEL
 
 void I_GetEvent(void);
 
@@ -178,6 +184,10 @@ void I_InitGraphics (void)
 {
     int i;
 
+#ifdef DMA2D_HW_ACCEL
+    __HAL_RCC_DMA2D_CLK_ENABLE();
+#endif
+
 	memset(&s_Fb, 0, sizeof(struct FB_ScreenInfo));
 
 	s_Fb.xres = BSP_LCD_GetXSize();
@@ -259,8 +269,39 @@ void I_UpdateNoBlit (void)
 // I_FinishUpdate
 //
 
+#ifdef DMA2D_HW_ACCEL
+static void BlitDoomFrame(uint8_t *src, uint32_t *dst, int width, int height)
+{
+    DMA2D_HandleTypeDef hdma2d = {0};
+    hdma2d.Instance = DMA2D;
+
+    hdma2d.Init.Mode         = DMA2D_M2M_PFC;
+    hdma2d.Init.ColorMode    = DMA2D_OUTPUT_ARGB8888;
+    hdma2d.Init.OutputOffset = (BSP_LCD_GetXSize() - width); // pixels per line padding
+
+    hdma2d.LayerCfg[1].InputColorMode = DMA2D_INPUT_L8;
+    hdma2d.LayerCfg[1].InputOffset    = 0; // no gap between lines
+    hdma2d.LayerCfg[1].AlphaMode      = DMA2D_NO_MODIF_ALPHA;
+    hdma2d.LayerCfg[1].InputAlpha     = 0xFF;
+
+    HAL_DMA2D_Init(&hdma2d);
+    HAL_DMA2D_ConfigLayer(&hdma2d, 1);
+
+    HAL_DMA2D_Start(&hdma2d,
+                    (uint32_t)src,
+                    (uint32_t)dst,
+                    width,
+                    height);
+
+    HAL_DMA2D_PollForTransfer(&hdma2d, HAL_MAX_DELAY);
+}
+#endif // DMA2D_HW_ACCEL
+
 void I_FinishUpdate (void)
 {
+#ifdef DMA2D_HW_ACCEL
+    BlitDoomFrame(I_VideoBuffer, (uint32_t *)DG_ScreenBuffer, SCREENWIDTH, SCREENHEIGHT);
+#else
     int y;
     int x_offset, x_offset_end;
     // int y_offset;
@@ -307,6 +348,7 @@ void I_FinishUpdate (void)
         }
         line_in += SCREENWIDTH;
     }
+#endif
 
 	DG_DrawFrame();
 }
@@ -327,7 +369,7 @@ void I_ReadScreen (byte* scr)
 #define GFX_RGB565_G(color)			((0x07E0 & color) >> 5)
 #define GFX_RGB565_B(color)			(0x001F & color)
 
-void I_SetPalette (byte* palette)
+void I_SetPalette (byte* palette_in)
 {
 	int i;
 	//col_t* c;
@@ -347,6 +389,7 @@ void I_SetPalette (byte* palette)
     /* performance boost:
      * map to the right pixel format over here! */
 
+    byte* palette = palette_in;
     for (i=0; i<256; ++i ) {
         colors[i].a = 0;
         colors[i].r = gammatable[usegamma][*palette++];
@@ -354,12 +397,42 @@ void I_SetPalette (byte* palette)
         colors[i].b = gammatable[usegamma][*palette++];
     }
 
+#ifdef DMA2D_HW_ACCEL
+    palette = palette_in;
+    for (int i = 0; i < 256; ++i)
+    {
+        uint8_t r = gammatable[usegamma][*palette++];
+        uint8_t g = gammatable[usegamma][*palette++];
+        uint8_t b = gammatable[usegamma][*palette++];
+
+        dma2d_clut[i] = (0xFF << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    DMA2D_HandleTypeDef hdma2d = {0};
+    hdma2d.Instance = DMA2D;
+
+    hdma2d.Init.Mode = DMA2D_M2M_PFC;
+    hdma2d.Init.ColorMode = DMA2D_ARGB8888; // DMA2D_OUTPUT_ARGB8888;
+    HAL_DMA2D_Init(&hdma2d);
+
+    DMA2D_CLUTCfgTypeDef clut_cfg;
+    clut_cfg.pCLUT = (uint32_t*)dma2d_clut;
+    clut_cfg.CLUTColorMode = DMA2D_CCM_ARGB8888;
+    clut_cfg.Size = 255;  // 0-based → 256 entries
+
+    HAL_DMA2D_CLUTLoad(&hdma2d, clut_cfg, 0);
+    HAL_DMA2D_PollForTransfer(&hdma2d, HAL_MAX_DELAY);
+#endif
+
 #ifdef CMAP256
 
     palette_changed = true;
 
 #endif  // CMAP256
 }
+
+
+    // Optional: load into DMA2D right here (blocking)
 
 // Given an RGB value, find the closest matching palette index.
 
