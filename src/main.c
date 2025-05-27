@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
+// Board specific includes
 #include "stm32f7xx.h"
 #include "stm32f769i_discovery.h"
 #include "stm32f769i_discovery_lcd.h"
@@ -8,29 +9,28 @@
 #include "ff_gen_drv.h"
 #include "sd_diskio.h"
 /* </mass storage> */
-#include "doomgeneric.h"
+#include "doomgeneric.h" // application specific
 
-#define FRAMEBUFFER_WIDTH  800
-#define FRAMEBUFFER_HEIGHT 480
+// DEFINES
 #define BYTES_PER_PIXEL    4
+#define SDRAM_BASE       LCD_FB_START_ADDRESS
+#define SDRAM_SIZE       (8 * 1024 * 1024)  // 8 MB
+#define SDRAM_END        (SDRAM_BASE + SDRAM_SIZE)
+#define FB_SIZE_BYTES    (BSP_LCD_GetXSize() * BSP_LCD_GetYSize() * BYTES_PER_PIXEL)
 
-// Double Buffering
-#define FB0_ADDR LCD_FB_START_ADDRESS
-#define FB1_ADDR ((uint32_t)(FB0_ADDR + FRAMEBUFFER_WIDTH * FRAMEBUFFER_HEIGHT * BYTES_PER_PIXEL))
-// list with framebuffer addresses
-static const uint32_t g_fblist[] = { FB0_ADDR, FB1_ADDR };
-static int g_fbcur = 1; // start in invisible buffer
-static int g_fbready = 0; // safe to swap?
-extern LTDC_HandleTypeDef hltdc_discovery;
-
-extern pixel_t* DG_ScreenBuffer; /* */
-
+// MCU config
 static void MPU_Config(void);
 static void CPU_CACHE_Enable(void);
 static void SystemClock_Config(void);
-
-char SDPath[4];   /* SD logical drive path */
-FATFS SDFatFS;    /* File system object for SD logical drive */
+// SD Card
+char g_sdpath[4];   // SD logical drive path
+FATFS g_sdfatfs;    // File system object for SD logical drive
+// Double Buffering
+static uint32_t g_fblist[2]; // populated at init
+static int g_fbcur = 1; // start in invisible buffer
+static int g_fbready = 0; // safe to swap buffers?
+extern LTDC_HandleTypeDef hltdc_discovery; // display
+extern pixel_t* DG_ScreenBuffer; // buffer for doom to draw to
 
 int main(void)
 {
@@ -48,6 +48,8 @@ int main(void)
     BSP_SDRAM_Init();
 
     // Display
+    g_fblist[0] = LCD_FB_START_ADDRESS;
+    g_fblist[1] = g_fblist[0] + FB_SIZE_BYTES;
     BSP_LCD_Init();
     BSP_LCD_LayerDefaultInit(0, g_fblist[0]);
     BSP_LCD_SelectLayer(0);
@@ -56,20 +58,19 @@ int main(void)
     BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
     BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
     BSP_LCD_SetBrightness(100); // set brightness to 100%
-
-    memset((void *)g_fblist[0], 0, FRAMEBUFFER_HEIGHT * FRAMEBUFFER_WIDTH * BYTES_PER_PIXEL);
-    memset((void *)g_fblist[1], 0, FRAMEBUFFER_HEIGHT * FRAMEBUFFER_WIDTH * BYTES_PER_PIXEL);
+    memset((void *)g_fblist[0], 0, FB_SIZE_BYTES); // clear first framebuffer
+    memset((void *)g_fblist[1], 0, FB_SIZE_BYTES); // clear second framebuffer
 
     int line = 0;
     BSP_LCD_DisplayStringAtLine(line++, "STM32F769I Doom by Jan Zwiener");
     BSP_LCD_DisplayStringAtLine(line++, "Loading .WAD file from SD card...");
     // Mount SD Card
-    if (FATFS_LinkDriver(&SD_Driver, SDPath) != 0)
+    if (FATFS_LinkDriver(&SD_Driver, g_sdpath) != 0)
     {
         BSP_LCD_DisplayStringAtLine(line++, "Failed to load SD card driver");
         while (1) { HAL_Delay(1000); }
     }
-    FRESULT fr = f_mount(&SDFatFS, (TCHAR const *)SDPath, 1);
+    FRESULT fr = f_mount(&g_sdfatfs, (TCHAR const *)g_sdpath, 1);
     if (fr != FR_OK)
     {
         BSP_LCD_DisplayStringAtLine(line++, "Error: Failed to mount SD card.");
@@ -83,8 +84,8 @@ int main(void)
     /* Prepare main loop */
     char *argv[] = { "doom.exe" };
     doomgeneric_Create(sizeof(argv)/sizeof(argv[0]), argv);
-    memset((void *)g_fblist[0], 0, FRAMEBUFFER_HEIGHT * FRAMEBUFFER_WIDTH * BYTES_PER_PIXEL);
-    memset((void *)g_fblist[1], 0, FRAMEBUFFER_HEIGHT * FRAMEBUFFER_WIDTH * BYTES_PER_PIXEL);
+    memset((void *)g_fblist[0], 0, FB_SIZE_BYTES);
+    memset((void *)g_fblist[1], 0, FB_SIZE_BYTES);
 
     HAL_LTDC_ProgramLineEvent(&hltdc_discovery, 0);
     while (1)
@@ -100,6 +101,17 @@ int main(void)
     }
 
     return 0;
+}
+
+/** @brief Give the address and size of the zone memory. */
+void I_GetZoneMemory(uint32_t *zonemem, int* size)
+{
+    if (zonemem)
+    {
+        // Locate after the two framebuffers:
+        *zonemem = g_fblist[1] + FB_SIZE_BYTES;
+        *size = SDRAM_END - (*zonemem);
+    }
 }
 
 void DG_Init()

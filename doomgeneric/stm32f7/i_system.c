@@ -57,12 +57,11 @@ void I_Tactile(int on, int off, int total)
 // by trying progressively smaller zone sizes until one is found that
 // works.
 // [jnz] For the microcontroller port this is just a fixed memory lump.
-#warning "Move into linker script"
-#define ZONE_MEM_ADDRESS     0xC02EE000
+extern void I_GetZoneMemory(uint32_t *zonemem, int* size);
 byte *I_ZoneBase (int *size)
 {
-    uint32_t zonemem = ZONE_MEM_ADDRESS;
-    *size = DEFAULT_RAM * 1024 * 1024;
+    uint32_t zonemem;
+    I_GetZoneMemory(&zonemem, size);
     return (byte*) zonemem;
 }
 
