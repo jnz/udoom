@@ -36,33 +36,27 @@
 
 /* Link fopen/fread etc. to fatfs library */
 #include "ff.h"
-#include "stm32f769i_discovery.h"
 
+/* Defines */
 #define MAX_FILES 4
 #define RESERVED_FILE_HANDLES   8
 
-/* Variables */
+/* Functions */
 extern int __io_putchar(int ch) __attribute__((weak));
 extern int __io_getchar(void) __attribute__((weak));
+extern int printfoutput(const char* out, int len);
 
+/* Variables */
 char *__env[1] = { 0 };
 char **environ = __env;
 
 static FIL g_files[MAX_FILES];
 
-/* Functions */
+/* Function Bodies */
 
 void _fini(void) {}
-
-void __libc_init_array()
-{
-
-}
-
-void initialise_monitor_handles()
-{
-
-}
+void __libc_init_array() {}
+void initialise_monitor_handles() {}
 
 int _getpid(void)
 {
@@ -141,7 +135,6 @@ int _getentropy(void *buffer, size_t length)
 
 int _read(int file, char *ptr, int len)
 {
-    BSP_LED_Toggle(LED1);
     // Allow reading from stdin via __io_getchar (optional)
     if (file == STDIN_FILENO)
     {
@@ -178,15 +171,7 @@ int _write(int file, char *data, int len)
 {
     if (file == STDOUT_FILENO || file == STDERR_FILENO)
     {
-        static char dmabuffer[256]; // DMA buffer for UART transmission
-        extern UART_HandleTypeDef huart1;
-        size_t bts = len < sizeof(dmabuffer) ? len : sizeof(dmabuffer);
-        while (HAL_UART_GetState(&huart1) != HAL_UART_STATE_READY
-               && HAL_UART_GetState(&huart1) != HAL_UART_STATE_BUSY_RX)
-        {}
-        memcpy(dmabuffer, data, bts);
-        HAL_UART_Transmit_DMA(&huart1, (uint8_t*)dmabuffer, bts);
-        return bts;
+        return printfoutput(data, len);
     }
 
     errno = EBADF; // not implemented

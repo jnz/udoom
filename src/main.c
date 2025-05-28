@@ -348,3 +348,23 @@ static void MX_DMA_Init(void)
     HAL_NVIC_SetPriority(DMA2_Stream7_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);
 }
+
+#define MAXPRINTFLINELEN 128
+int printfoutput(const char* out, int len)
+{
+    static char dmabuffer[MAXPRINTFLINELEN + 1]; // 1 bytes extra for \r\n
+    extern UART_HandleTypeDef huart1;
+    size_t bts = len < MAXPRINTFLINELEN ? len : MAXPRINTFLINELEN;
+    while (HAL_UART_GetState(&huart1) != HAL_UART_STATE_READY
+           && HAL_UART_GetState(&huart1) != HAL_UART_STATE_BUSY_RX)
+    {}
+    memcpy(dmabuffer, out, bts);
+    if (dmabuffer[bts-1] == '\n')
+    {
+        dmabuffer[bts-1] = '\r';
+        dmabuffer[bts] = '\n';
+        bts++;
+    }
+    HAL_UART_Transmit_DMA(&huart1, (uint8_t*)dmabuffer, bts);
+    return len;
+}
