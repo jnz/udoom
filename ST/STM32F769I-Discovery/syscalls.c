@@ -171,7 +171,11 @@ int _write(int file, char *data, int len)
 {
     if (file == STDOUT_FILENO || file == STDERR_FILENO)
     {
-        return printfoutput(data, len);
+        for (int i = 0; i < len; i++)
+        {
+            __io_putchar(data[i]);
+        }
+        return len;
     }
 
     errno = EBADF; // not implemented

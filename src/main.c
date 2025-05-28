@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 // Board specific includes
 #include "stm32f7xx.h"
@@ -14,7 +15,7 @@
 // DEFINES
 #define BYTES_PER_PIXEL  4
 #define SDRAM_BASE       LCD_FB_START_ADDRESS
-#define SDRAM_SIZE       (8 * 1024 * 1024)  // 8 MB
+#define SDRAM_SIZE       (8 * 1024 * 1024)  // MB
 #define SDRAM_END        (SDRAM_BASE + SDRAM_SIZE)
 #define FB_SIZE_BYTES    (BSP_LCD_GetXSize() * BSP_LCD_GetYSize() * BYTES_PER_PIXEL)
 
@@ -29,12 +30,13 @@ static int g_fbready = 0; // safe to swap buffers?
 extern LTDC_HandleTypeDef hltdc_discovery; // display
 extern pixel_t* DG_ScreenBuffer; // buffer for doom to draw to
 // UART
-#define USART_TX_Pin GPIO_PIN_9
-#define USART_TX_GPIO_Port GPIOA
-#define USART_RX_Pin GPIO_PIN_10
-#define USART_RX_GPIO_Port GPIOA
-UART_HandleTypeDef huart1;
-DMA_HandleTypeDef hdma_usart1_tx;
+#define UART_TX_BUF_SIZE        256
+#define USART_TX_Pin            GPIO_PIN_9
+#define USART_TX_GPIO_Port      GPIOA
+#define USART_RX_Pin            GPIO_PIN_10
+#define USART_RX_GPIO_Port      GPIOA
+UART_HandleTypeDef              huart1;
+DMA_HandleTypeDef               hdma_usart1_tx;
 static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
 
@@ -100,11 +102,20 @@ int main(void)
     memset((void *)g_fblist[1], 0, FB_SIZE_BYTES);
 
     HAL_LTDC_ProgramLineEvent(&hltdc_discovery, 0);
+    int fpscounter = 0;
+    uint32_t nextfpsupdate = HAL_GetTick() + 1000;
     while (1)
     {
         // Prepare the framebuffer for drawing
         DG_ScreenBuffer = (pixel_t*)g_fblist[g_fbcur];
         doomgeneric_Tick();
+        fpscounter++;
+        if (HAL_GetTick() > nextfpsupdate)
+        {
+            printf("\rFPS: %3i", fpscounter);
+            fpscounter = 0;
+            nextfpsupdate += 1000;
+        }
 
         while (g_fbready)
         {
@@ -118,7 +129,9 @@ int main(void)
 /** @brief Give the address and size of the zone memory.  */
 uint8_t *I_ZoneBase (int *size)
 {
+    // Improvement: handle this via linker script
     uint32_t zonemem = g_fblist[1] + FB_SIZE_BYTES;
+    printf("zonemem address: %p\n", (void*)zonemem);
     *size = SDRAM_END - zonemem;
     return (uint8_t*) zonemem;
 }
@@ -349,22 +362,14 @@ static void MX_DMA_Init(void)
     HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);
 }
 
-#define MAXPRINTFLINELEN 128
-int printfoutput(const char* out, int len)
+int __io_putchar(int ch)
 {
-    static char dmabuffer[MAXPRINTFLINELEN + 1]; // 1 bytes extra for \r\n
-    extern UART_HandleTypeDef huart1;
-    size_t bts = len < MAXPRINTFLINELEN ? len : MAXPRINTFLINELEN;
-    while (HAL_UART_GetState(&huart1) != HAL_UART_STATE_READY
-           && HAL_UART_GetState(&huart1) != HAL_UART_STATE_BUSY_RX)
-    {}
-    memcpy(dmabuffer, out, bts);
-    if (dmabuffer[bts-1] == '\n')
+    if (ch == '\n')
     {
-        dmabuffer[bts-1] = '\r';
-        dmabuffer[bts] = '\n';
-        bts++;
+        char r = '\r';
+        HAL_UART_Transmit(&huart1, (const uint8_t*)&r, 1, 1);
     }
-    HAL_UART_Transmit_DMA(&huart1, (uint8_t*)dmabuffer, bts);
-    return len;
+    HAL_UART_Transmit(&huart1, (const uint8_t*)&ch, 1, 1);
+    return ch;
 }
+

@@ -40,8 +40,6 @@
 #include "w_wad.h"
 #include "z_zone.h"
 
-#define DEFAULT_RAM 8 /* MiB */
-
 void I_AtExit(atexit_func_t func, boolean run_on_error)
 {
 
