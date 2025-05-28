@@ -40,7 +40,7 @@
 #include <sys/types.h>
 
 #include "stm32f769i_discovery_lcd.h"
-// #define DMA2D_HW_ACCEL
+#define DMA2D_HW_ACCEL
 
 //#define CMAP256
 
@@ -93,7 +93,8 @@ void I_GetEvent(void);
 
 // The screen buffer; this is modified to draw things to the screen
 
-byte *I_VideoBuffer = NULL;
+byte VideoBuffer[SCREENWIDTH * SCREENHEIGHT];
+byte *I_VideoBuffer = VideoBuffer;
 
 // If true, game is running as a screensaver
 
@@ -130,6 +131,27 @@ typedef struct
 // Palette converted to RGB565
 
 static uint16_t rgb565_palette[256];
+
+#ifdef DMA2D_HW_ACCEL
+DMA2D_HandleTypeDef hdma2d;
+void DMA2D_Init(void)
+{
+    __HAL_RCC_DMA2D_CLK_ENABLE();
+
+    hdma2d.Instance = DMA2D;
+    hdma2d.Init.Mode = DMA2D_M2M_PFC;
+    hdma2d.Init.ColorMode = DMA2D_OUTPUT_ARGB8888;
+    hdma2d.Init.OutputOffset = BSP_LCD_GetXSize() - SCREENWIDTH;
+
+    hdma2d.LayerCfg[1].InputColorMode = DMA2D_INPUT_L8;
+    hdma2d.LayerCfg[1].InputOffset = 0;
+    hdma2d.LayerCfg[1].AlphaMode = DMA2D_NO_MODIF_ALPHA;
+    hdma2d.LayerCfg[1].InputAlpha = 0xFF;
+
+    HAL_DMA2D_Init(&hdma2d);
+    HAL_DMA2D_ConfigLayer(&hdma2d, 1);
+}
+#endif
 
 void cmap_to_rgb565(uint16_t * out, uint8_t * in, int in_pixels)
 {
@@ -185,7 +207,7 @@ void I_InitGraphics (void)
     int i;
 
 #ifdef DMA2D_HW_ACCEL
-    __HAL_RCC_DMA2D_CLK_ENABLE();
+    DMA2D_Init();
 #endif
 
 	memset(&s_Fb, 0, sizeof(struct FB_ScreenInfo));
@@ -238,7 +260,7 @@ void I_InitGraphics (void)
 
 
     /* Allocate screen to draw to */
-	I_VideoBuffer = (byte*)Z_Malloc (SCREENWIDTH * SCREENHEIGHT, PU_STATIC, NULL);  // For DOOM to draw on
+	// I_VideoBuffer = (byte*)Z_Malloc (SCREENWIDTH * SCREENHEIGHT, PU_STATIC, NULL);  // For DOOM to draw on
 
 	screenvisible = true;
 
@@ -248,7 +270,7 @@ void I_InitGraphics (void)
 
 void I_ShutdownGraphics (void)
 {
-	Z_Free (I_VideoBuffer);
+	// Z_Free (I_VideoBuffer);
 }
 
 void I_StartFrame (void)
@@ -272,30 +294,41 @@ void I_UpdateNoBlit (void)
 #ifdef DMA2D_HW_ACCEL
 static void BlitDoomFrame(uint8_t *src, uint32_t *dst, int width, int height)
 {
-    DMA2D_HandleTypeDef hdma2d = {0};
-    hdma2d.Instance = DMA2D;
+    uint32_t* dst_center = dst +            // Base address
+        ((BSP_LCD_GetYSize() - height) / 2) * BSP_LCD_GetXSize() +  // vertical center
+        ((BSP_LCD_GetXSize() - width ) / 2);                  // horizontal center
 
-    hdma2d.Init.Mode         = DMA2D_M2M_PFC;
-    hdma2d.Init.ColorMode    = DMA2D_OUTPUT_ARGB8888;
-    hdma2d.Init.OutputOffset = (BSP_LCD_GetXSize() - width); // pixels per line padding
-
-    hdma2d.LayerCfg[1].InputColorMode = DMA2D_INPUT_L8;
-    hdma2d.LayerCfg[1].InputOffset    = 0; // no gap between lines
-    hdma2d.LayerCfg[1].AlphaMode      = DMA2D_NO_MODIF_ALPHA;
-    hdma2d.LayerCfg[1].InputAlpha     = 0xFF;
-
-    HAL_DMA2D_Init(&hdma2d);
-    HAL_DMA2D_ConfigLayer(&hdma2d, 1);
+    SCB_CleanDCache_by_Addr((uint32_t*)src, width * height);
+    SCB_CleanDCache_by_Addr((uint32_t*)dma2d_clut, sizeof(dma2d_clut));
 
     HAL_DMA2D_Start(&hdma2d,
                     (uint32_t)src,
-                    (uint32_t)dst,
+                    (uint32_t)dst_center,
                     width,
                     height);
 
     HAL_DMA2D_PollForTransfer(&hdma2d, HAL_MAX_DELAY);
 }
 #endif // DMA2D_HW_ACCEL
+
+#if 0
+void scale2x(const uint8_t* src, uint8_t* dest, int w, int h)
+{
+    for (int y = 0; y < h; ++y) {
+        const uint8_t* src_row = src + y * w;
+        uint8_t* dst_row0 = dest + (y * 2) * (w * 2);
+        uint8_t* dst_row1 = dst_row0 + (w * 2);
+
+        for (int x = 0; x < w; ++x) {
+            uint8_t p = src_row[x];
+            dst_row0[x * 2 + 0] = p;
+            dst_row0[x * 2 + 1] = p;
+            dst_row1[x * 2 + 0] = p;
+            dst_row1[x * 2 + 1] = p;
+        }
+    }
+}
+#endif
 
 void I_FinishUpdate (void)
 {
@@ -408,19 +441,13 @@ void I_SetPalette (byte* palette_in)
         dma2d_clut[i] = (0xFF << 24) | (r << 16) | (g << 8) | b;
     }
 
-    DMA2D_HandleTypeDef hdma2d = {0};
-    hdma2d.Instance = DMA2D;
+    DMA2D_CLUTCfgTypeDef clut_cfg = {
+        .pCLUT = dma2d_clut,
+        .CLUTColorMode = DMA2D_CCM_ARGB8888,
+        .Size = 255
+    };
 
-    hdma2d.Init.Mode = DMA2D_M2M_PFC;
-    hdma2d.Init.ColorMode = DMA2D_ARGB8888; // DMA2D_OUTPUT_ARGB8888;
-    HAL_DMA2D_Init(&hdma2d);
-
-    DMA2D_CLUTCfgTypeDef clut_cfg;
-    clut_cfg.pCLUT = (uint32_t*)dma2d_clut;
-    clut_cfg.CLUTColorMode = DMA2D_CCM_ARGB8888;
-    clut_cfg.Size = 255;  // 0-based → 256 entries
-
-    HAL_DMA2D_CLUTLoad(&hdma2d, clut_cfg, 0);
+    HAL_DMA2D_CLUTLoad(&hdma2d, clut_cfg, 1);
     HAL_DMA2D_PollForTransfer(&hdma2d, HAL_MAX_DELAY);
 #endif
 
