@@ -32,6 +32,7 @@
 #include <sys/times.h>
 #include <fcntl.h>   // for O_RDWR, O_WRONLY, O_CREAT, etc.
 #include <unistd.h>  // for STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO
+#include <string.h>  // for memcpy
 
 /* Link fopen/fread etc. to fatfs library */
 #include "ff.h"
@@ -41,16 +42,8 @@
 #define RESERVED_FILE_HANDLES   8
 
 /* Variables */
-//extern int __io_putchar(int ch) __attribute__((weak));
+extern int __io_putchar(int ch) __attribute__((weak));
 extern int __io_getchar(void) __attribute__((weak));
-static int stdoutpos;
-static char stdoutbuf[1024];
-int __io_putchar(int ch)
-{
-    stdoutbuf[stdoutpos] = ch;
-    stdoutpos = (stdoutpos+1) % sizeof(stdoutbuf);
-    return ch;
-}
 
 char *__env[1] = { 0 };
 char **environ = __env;
@@ -183,13 +176,17 @@ int _read(int file, char *ptr, int len)
 
 int _write(int file, char *data, int len)
 {
-   if (file == STDOUT_FILENO || file == STDERR_FILENO)
-   {
-        for (int i = 0; i < len; i++)
-        {
-            __io_putchar(data[i]);
-        }
-        return len;
+    if (file == STDOUT_FILENO || file == STDERR_FILENO)
+    {
+        static char dmabuffer[256]; // DMA buffer for UART transmission
+        extern UART_HandleTypeDef huart1;
+        size_t bts = len < sizeof(dmabuffer) ? len : sizeof(dmabuffer);
+        while (HAL_UART_GetState(&huart1) != HAL_UART_STATE_READY
+               && HAL_UART_GetState(&huart1) != HAL_UART_STATE_BUSY_RX)
+        {}
+        memcpy(dmabuffer, data, bts);
+        HAL_UART_Transmit_DMA(&huart1, (uint8_t*)dmabuffer, bts);
+        return bts;
     }
 
     errno = EBADF; // not implemented

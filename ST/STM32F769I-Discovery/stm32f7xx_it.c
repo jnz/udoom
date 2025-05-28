@@ -3,7 +3,7 @@
   * @file    Templates/Src/stm32f7xx.c
   * @author  MCD Application Team
   * @brief   Main Interrupt Service Routines.
-  *          This file provides template for all exceptions handler and 
+  *          This file provides template for all exceptions handler and
   *          peripherals interrupt service routine.
   ******************************************************************************
   * @attention
@@ -22,7 +22,7 @@
 #include "stm32f7xx_hal.h"
 #include "stm32f769i_discovery.h"
 #include "stm32f7xx_it.h"
-   
+
 /** @addtogroup STM32F7xx_HAL_Examples
   * @{
   */
@@ -37,6 +37,8 @@
 /* Private variables ---------------------------------------------------------*/
 extern LTDC_HandleTypeDef hltdc_discovery;
 extern SD_HandleTypeDef uSdHandle;
+extern DMA_HandleTypeDef hdma_usart1_tx;
+extern UART_HandleTypeDef huart1;
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
@@ -169,7 +171,7 @@ void LTDC_IRQHandler(void)
  */
 void BSP_SDMMC2_DMA_Rx_IRQHandler(void)
 {
-  HAL_DMA_IRQHandler(uSdHandle.hdmarx); 
+    HAL_DMA_IRQHandler(uSdHandle.hdmarx);
 }
 
 /**
@@ -178,7 +180,7 @@ void BSP_SDMMC2_DMA_Rx_IRQHandler(void)
  */
 void BSP_SDMMC2_DMA_Tx_IRQHandler(void)
 {
-  HAL_DMA_IRQHandler(uSdHandle.hdmatx); 
+    HAL_DMA_IRQHandler(uSdHandle.hdmatx);
 }
 
 /**
@@ -187,7 +189,23 @@ void BSP_SDMMC2_DMA_Tx_IRQHandler(void)
  */
 void BSP_SDMMC2_IRQHandler(void)
 {
-  HAL_SD_IRQHandler(&uSdHandle);
+    HAL_SD_IRQHandler(&uSdHandle);
+}
+
+/**
+ * @brief This function handles DMA2 stream7 global interrupt.
+ */
+void DMA2_Stream7_IRQHandler(void)
+{
+    HAL_DMA_IRQHandler(&hdma_usart1_tx);
+}
+
+/**
+ * @brief This function handles USART1 global interrupt.
+ */
+void USART1_IRQHandler(void)
+{
+    HAL_UART_IRQHandler(&huart1);
 }
 
 /**
