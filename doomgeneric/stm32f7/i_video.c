@@ -70,22 +70,26 @@ static struct FB_ScreenInfo s_Fb;
 int fb_scaling = 1;
 int usemouse = 0;
 
-
-#ifdef CMAP256
-
-boolean palette_changed;
-struct color colors[256];
-
-#else  // CMAP256
-
-static struct color colors[256];
-
-
-#endif  // CMAP256
-
 #ifdef DMA2D_HW_ACCEL
 
 static uint32_t dma2d_clut[256]; // palette for DMA2D hardware acceleration
+#define DMA2D_HW_ACCEL_SCALE_2X
+#ifdef DMA2D_HW_ACCEL_SCALE_2X
+static byte* VideoBuffer2X;
+#endif
+
+#else
+
+    #ifdef CMAP256
+
+    boolean palette_changed;
+    struct color colors[256];
+
+    #else  // CMAP256
+
+    static struct color colors[256];
+
+    #endif  // CMAP256
 
 #endif // DMA2D_HW_ACCEL
 
@@ -141,7 +145,11 @@ void DMA2D_Init(void)
     hdma2d.Instance = DMA2D;
     hdma2d.Init.Mode = DMA2D_M2M_PFC;
     hdma2d.Init.ColorMode = DMA2D_OUTPUT_ARGB8888;
+#ifdef DMA2D_HW_ACCEL_SCALE_2X
+    hdma2d.Init.OutputOffset = BSP_LCD_GetXSize() - 2*SCREENWIDTH;
+#else
     hdma2d.Init.OutputOffset = BSP_LCD_GetXSize() - SCREENWIDTH;
+#endif
 
     hdma2d.LayerCfg[1].InputColorMode = DMA2D_INPUT_L8;
     hdma2d.LayerCfg[1].InputOffset = 0;
@@ -150,9 +158,14 @@ void DMA2D_Init(void)
 
     HAL_DMA2D_Init(&hdma2d);
     HAL_DMA2D_ConfigLayer(&hdma2d, 1);
+#ifdef DMA2D_HW_ACCEL_SCALE_2X
+    // To scale up by 2x a temp. buffer is required.
+    VideoBuffer2X = Z_Malloc (4 * SCREENWIDTH * SCREENHEIGHT, PU_STATIC, NULL);
+#endif
 }
 #endif
 
+#ifndef DMA2D_HW_ACCEL
 void cmap_to_rgb565(uint16_t * out, uint8_t * in, int in_pixels)
 {
     int i, j;
@@ -201,6 +214,7 @@ void cmap_to_fb(uint8_t * out, uint8_t * in, int in_pixels)
         in++;
     }
 }
+#endif
 
 void I_InitGraphics (void)
 {
@@ -292,27 +306,9 @@ void I_UpdateNoBlit (void)
 //
 
 #ifdef DMA2D_HW_ACCEL
-static void BlitDoomFrame(uint8_t *src, uint32_t *dst, int width, int height)
-{
-    uint32_t* dst_center = dst +            // Base address
-        ((BSP_LCD_GetYSize() - height) / 2) * BSP_LCD_GetXSize() +  // vertical center
-        ((BSP_LCD_GetXSize() - width ) / 2);                  // horizontal center
 
-    SCB_CleanDCache_by_Addr((uint32_t*)src, width * height);
-    SCB_CleanDCache_by_Addr((uint32_t*)dma2d_clut, sizeof(dma2d_clut));
-
-    HAL_DMA2D_Start(&hdma2d,
-                    (uint32_t)src,
-                    (uint32_t)dst_center,
-                    width,
-                    height);
-
-    HAL_DMA2D_PollForTransfer(&hdma2d, HAL_MAX_DELAY);
-}
-#endif // DMA2D_HW_ACCEL
-
-#if 0
-void scale2x(const uint8_t* src, uint8_t* dest, int w, int h)
+#ifdef DMA2D_HW_ACCEL_SCALE_2X
+static void scale2x(const uint8_t* src, uint8_t* dest, int w, int h)
 {
     for (int y = 0; y < h; ++y) {
         const uint8_t* src_row = src + y * w;
@@ -329,6 +325,34 @@ void scale2x(const uint8_t* src, uint8_t* dest, int w, int h)
     }
 }
 #endif
+
+static void BlitDoomFrame(const uint8_t *src, uint32_t *dst, int width, int height)
+{
+#ifdef DMA2D_HW_ACCEL_SCALE_2X
+    scale2x(src, VideoBuffer2X, width, height);
+    uint8_t* src_scaled = VideoBuffer2X;
+    const int scale = 2;
+#else
+    uint8_t* src_scaled = src;
+    const int scale = 1;
+#endif
+
+    uint32_t* dst_center = dst +
+        ((BSP_LCD_GetYSize() - scale*height) / 2) * BSP_LCD_GetXSize() +
+        ((BSP_LCD_GetXSize() - scale*width ) / 2);
+
+    // If the SDRAM memory is not up-to-date, the DMA2D copy will
+    // create weird artifacts
+    SCB_CleanDCache_by_Addr((uint32_t*)src_scaled, scale * scale * width * height);
+    HAL_DMA2D_Start(&hdma2d,
+                    (uint32_t)src_scaled,
+                    (uint32_t)dst_center,
+                    scale*width,
+                    scale*height);
+    HAL_DMA2D_PollForTransfer(&hdma2d, HAL_MAX_DELAY);
+}
+#endif // DMA2D_HW_ACCEL
+
 
 void I_FinishUpdate (void)
 {
@@ -402,36 +426,9 @@ void I_ReadScreen (byte* scr)
 #define GFX_RGB565_G(color)			((0x07E0 & color) >> 5)
 #define GFX_RGB565_B(color)			(0x001F & color)
 
-void I_SetPalette (byte* palette_in)
+void I_SetPalette (byte* palette)
 {
-	int i;
-	//col_t* c;
-
-	//for (i = 0; i < 256; i++)
-	//{
-	//	c = (col_t*)palette;
-
-	//	rgb565_palette[i] = GFX_RGB565(gammatable[usegamma][c->r],
-	//								   gammatable[usegamma][c->g],
-	//								   gammatable[usegamma][c->b]);
-
-	//	palette += 3;
-	//}
-    
-
-    /* performance boost:
-     * map to the right pixel format over here! */
-
-    byte* palette = palette_in;
-    for (i=0; i<256; ++i ) {
-        colors[i].a = 0;
-        colors[i].r = gammatable[usegamma][*palette++];
-        colors[i].g = gammatable[usegamma][*palette++];
-        colors[i].b = gammatable[usegamma][*palette++];
-    }
-
 #ifdef DMA2D_HW_ACCEL
-    palette = palette_in;
     for (int i = 0; i < 256; ++i)
     {
         uint8_t r = gammatable[usegamma][*palette++];
@@ -440,15 +437,22 @@ void I_SetPalette (byte* palette_in)
 
         dma2d_clut[i] = (0xFF << 24) | (r << 16) | (g << 8) | b;
     }
-
     DMA2D_CLUTCfgTypeDef clut_cfg = {
         .pCLUT = dma2d_clut,
         .CLUTColorMode = DMA2D_CCM_ARGB8888,
         .Size = 255
     };
-
+    // Flush the cache before we upload the palette memory via DMA2D
+    SCB_CleanDCache_by_Addr((uint32_t*)dma2d_clut, sizeof(dma2d_clut));
     HAL_DMA2D_CLUTLoad(&hdma2d, clut_cfg, 1);
     HAL_DMA2D_PollForTransfer(&hdma2d, HAL_MAX_DELAY);
+#else
+    for (int i=0; i<256; ++i ) {
+        colors[i].a = 0;
+        colors[i].r = gammatable[usegamma][*palette++];
+        colors[i].g = gammatable[usegamma][*palette++];
+        colors[i].b = gammatable[usegamma][*palette++];
+    }
 #endif
 
 #ifdef CMAP256
