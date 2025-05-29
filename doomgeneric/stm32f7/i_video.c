@@ -328,6 +328,11 @@ static void scale2x(const uint8_t* src, uint8_t* dest, int w, int h)
 
 static void BlitDoomFrame(const uint8_t *src, uint32_t *dst, int width, int height)
 {
+    if (HAL_DMA2D_GetState(&hdma2d) != HAL_DMA2D_STATE_READY)
+    {
+        HAL_DMA2D_PollForTransfer(&hdma2d, HAL_MAX_DELAY);
+    }
+
 #ifdef DMA2D_HW_ACCEL_SCALE_2X
     scale2x(src, VideoBuffer2X, width, height);
     uint8_t* src_scaled = VideoBuffer2X;
@@ -349,7 +354,7 @@ static void BlitDoomFrame(const uint8_t *src, uint32_t *dst, int width, int heig
                     (uint32_t)dst_center,
                     scale*width,
                     scale*height);
-    HAL_DMA2D_PollForTransfer(&hdma2d, HAL_MAX_DELAY);
+    // HAL_DMA2D_PollForTransfer(&hdma2d, HAL_MAX_DELAY);
 }
 #endif // DMA2D_HW_ACCEL
 
