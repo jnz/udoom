@@ -39,6 +39,7 @@ UART_HandleTypeDef              huart1;
 DMA_HandleTypeDef               hdma_usart1_tx;
 static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
+static void enable_dwt_cycle_counter(void);
 
 int main(void)
 {
@@ -46,18 +47,21 @@ int main(void)
     CPU_CACHE_Enable();
     HAL_Init();
     SystemClock_Config();
+    enable_dwt_cycle_counter();
 
     // LEDs
     BSP_LED_Init(LED1);
     BSP_LED_Init(LED2);
     BSP_LED_On(LED1);
 
-    // SDRAM
-    BSP_SDRAM_Init();
-
     // UART
     MX_DMA_Init();
     MX_USART1_UART_Init();
+    printf("STM32F769I Discovery Doom\n"); // early sign of life
+    printf("Core frequency: %lu MHz\n", HAL_RCC_GetHCLKFreq() / 1000000);
+
+    // SDRAM
+    BSP_SDRAM_Init();
 
     // Display
     g_fblist[0] = LCD_FB_START_ADDRESS;
@@ -73,6 +77,7 @@ int main(void)
     memset((void *)g_fblist[0], 0, FB_SIZE_BYTES); // clear first framebuffer
     memset((void *)g_fblist[1], 0, FB_SIZE_BYTES); // clear second framebuffer
 
+    // Initial hello
     int line = 0;
     BSP_LCD_DisplayStringAtLine(line++, "STM32F769I Doom by Jan Zwiener");
     BSP_LCD_DisplayStringAtLine(line++, "Loading .WAD file from SD card...");
@@ -91,11 +96,9 @@ int main(void)
         while (1) { HAL_Delay(1000); }
     }
     // from now on fopen() and other stdio functions will work with the SD card
-
-    BSP_LCD_DisplayStringAtLine(line++, "Loading Doom...");
     BSP_LED_Off(LED1); // MCU init complete
 
-    /* Prepare main loop */
+    // Prepare main loop
     char *argv[] = { "doom.exe" };
     doomgeneric_Create(sizeof(argv)/sizeof(argv[0]), argv);
     memset((void *)g_fblist[0], 0, FB_SIZE_BYTES);
@@ -104,22 +107,29 @@ int main(void)
     HAL_LTDC_ProgramLineEvent(&hltdc_discovery, 0);
     int fpscounter = 0;
     uint32_t nextfpsupdate = HAL_GetTick() + 1000;
+    uint32_t cyclecount = 0;
     while (1)
     {
         // Prepare the framebuffer for drawing
+        const uint32_t framestart = DWT->CYCCNT;
+
         DG_ScreenBuffer = (pixel_t*)g_fblist[g_fbcur];
         doomgeneric_Tick();
         fpscounter++;
+
+        cyclecount += DWT->CYCCNT - framestart;
         if (HAL_GetTick() > nextfpsupdate)
         {
-            printf("\rFPS: %3i", fpscounter);
+            const float cpuload = (float)cyclecount / HAL_RCC_GetHCLKFreq();
+            printf("\rFPS %2i CPU%3u%%", fpscounter, (int)(cpuload * 100));
+            cyclecount = 0;
             fpscounter = 0;
             nextfpsupdate += 1000;
         }
 
         while (g_fbready)
         {
-            HAL_Delay(0); // wait until frame swap
+            __WFI(); // save some power until the display controller is ready
         }
     }
 
@@ -373,3 +383,10 @@ int __io_putchar(int ch)
     return ch;
 }
 
+static void enable_dwt_cycle_counter(void)
+{
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    *((volatile uint32_t*)0xE0001FB0) = 0xC5ACCE55; // DWT_LAR unlock
+    DWT->CYCCNT = 0;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+}
