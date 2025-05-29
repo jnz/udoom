@@ -141,3 +141,67 @@ Doom calls this at startup:
 
 Make sure this block is large enough and does not overlap with any other DMA buffers.
 
+Reading .WAD Files from SD Card
+-------------------------------
+
+A bunch of boilerplate code is needed to read data from SD card using FatFS.
+The code is located in `src/storage/*`.
+
+To mount the SD card, first initialize the SD driver and link it to a path:
+
+    char sdpath[4];
+    FATFS sdfatfs;
+    if (FATFS_LinkDriver(&SD_Driver, sdpath) != 0)
+    {
+        BSP_LCD_DisplayStringAtLine(line++, "Failed to load SD card driver");
+        /* error handling */
+    }
+    FRESULT fr = f_mount(&sdfatfs, (TCHAR const *)sdpath, 1);
+    if (fr != FR_OK)
+    {
+        BSP_LCD_DisplayStringAtLine(line++, "Error: Failed to mount SD card.");
+        /* error handling */
+    }
+
+As Doom is has `fopen(...)` and `fread(...)` calls all over the place, the
+simplest way is to link the stdio library functions to FatFs in the
+`syscalls.c` file by overwriting `_open`, `_lseek`, `_read`, `_write`, and `_close`.
+E.g. for  `_open`, this will link fopen to FatFs's `f_open` function:
+
+    int _open(const char *path, int flags, ...)
+    {
+        BYTE fatfs_mode = 0;
+
+        if ((flags & O_RDWR) == O_RDWR)
+            fatfs_mode = FA_READ | FA_WRITE;
+        else if (flags & O_WRONLY)
+            fatfs_mode = FA_WRITE;
+        else
+            fatfs_mode = FA_READ;
+
+    #if _FS_READONLY == 0
+        if (flags & O_CREAT)
+            fatfs_mode |= FA_OPEN_ALWAYS;
+    #endif
+
+        for (int fn = 0; fn < MAX_FILES; fn++)
+        {
+            if (g_files[fn].obj.fs == NULL)
+            {
+                FRESULT fr = f_open(&g_files[fn], path, fatfs_mode);
+                if (fr == FR_OK)
+                {
+                    return fn + RESERVED_FILE_HANDLES;
+                }
+                errno = EIO;
+                return -1;
+            }
+        }
+        errno = EMFILE;
+        return -1;
+    }
+
+with a max. pool of FatFs file handles (`FIL`):
+
+    static FIL g_files[MAX_FILES];
+
