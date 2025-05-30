@@ -24,6 +24,7 @@
 #include <fcntl.h>
 #include <stdarg.h>
 #include <sys/types.h>
+#include <math.h>
 
 #include "stm32f769i_discovery_lcd.h"
 #define DMA2D_HW_ACCEL
@@ -62,6 +63,8 @@ void HAL_DMA2D_MspDeInit(DMA2D_HandleTypeDef *hdma2d);
 
 static uint32_t dma2d_clut[256]; // palette for STM's DMA2D hardware acceleration
 #define DMA2D_HW_ACCEL_SCALE_2X  // if enabled: scale up the framebuffer 2x
+static uint8_t gamma_lut[256];
+
 #ifdef DMA2D_HW_ACCEL_SCALE_2X
 static byte* VideoBuffer2X;
 #endif
@@ -216,11 +219,22 @@ void cmap_to_fb(uint8_t * out, uint8_t * in, int in_pixels)
 }
 #endif
 
+#ifdef DMA2D_HW_ACCEL
+static void init_gamma_lut(float gamma)
+{
+    for (int i = 0; i < 256; ++i)
+    {
+        gamma_lut[i] = (uint8_t)(powf(i / 255.0f, gamma) * 255.0f + 0.5f);
+    }
+}
+#endif
+
 void I_InitGraphics (void)
 {
     int i;
 
 #ifdef DMA2D_HW_ACCEL
+    init_gamma_lut(0.8f); // < 1.0f: brighter, > 1.0f darker
     DMA2D_Init();
 #endif
 
@@ -438,6 +452,10 @@ void I_SetPalette (byte* palette)
         uint8_t r = gammatable[usegamma][*palette++];
         uint8_t g = gammatable[usegamma][*palette++];
         uint8_t b = gammatable[usegamma][*palette++];
+
+        r = gamma_lut[r];
+        g = gamma_lut[g];
+        b = gamma_lut[b];
 
         dma2d_clut[i] = (0xFF << 24) | (r << 16) | (g << 8) | b;
     }
