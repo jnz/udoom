@@ -65,6 +65,8 @@ void HardFault_Handler(void)
   /* Go to infinite loop when Hard Fault exception occurs */
   while (1)
   {
+      // Stay a while – stay forever!
+      __WFI();
   }
 }
 
@@ -78,6 +80,7 @@ void MemManage_Handler(void)
   /* Go to infinite loop when Memory Manage exception occurs */
   while (1)
   {
+      __WFI(); // at least save some power
   }
 }
 

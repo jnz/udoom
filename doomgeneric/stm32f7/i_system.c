@@ -92,10 +92,13 @@ void I_Quit (void)
 {
 }
 
+// moved to stm32 main.c
+#if 0
 void I_Error (char *error, ...)
 {
     while(1) {}
 }
+#endif
 
 boolean I_GetMemoryValue(unsigned int offset, void *value, int size)
 {

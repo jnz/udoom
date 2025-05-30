@@ -15,6 +15,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdarg.h>
 // Board specific includes
 #include "stm32f7xx.h"
 #include "stm32f769i_discovery.h"
@@ -56,6 +57,7 @@
 static uint32_t g_fblist[2];
 extern LTDC_HandleTypeDef hltdc_discovery; // display handle
 extern pixel_t* DG_ScreenBuffer; // buffer for doom to draw to
+static uint32_t g_vsync_count;
 // Modified from interrupt handler and main code path:
 volatile static int g_fbcur = 1; // index into g_fblist, start in invisible buffer
 volatile static int g_fbready = 0; // safe to swap buffers?
@@ -72,11 +74,22 @@ DMA_HandleTypeDef   hdma_usart1_tx;
 static void MPU_Config(void);
 static void CPU_CACHE_Enable(void);
 static void SystemClock_Config(void);
+// Framebuffer
+static void Framebuffer_Clear(void);
 // UART
 static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
 // Profiler with cycle counter
 static void enable_dwt_cycle_counter(void);
+
+/******************************************************************************
+ * FUNCTION PROTOTYPES
+ ******************************************************************************/
+
+// HAL Delay with power saving
+void HAL_Delay_WFI(uint32_t Delay);
+// Doom error functions
+void I_Error(char *error, ...);
 
 /******************************************************************************
  * FUNCTION PROTOTYPES
@@ -115,8 +128,7 @@ int main(void)
     BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
     BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
     BSP_LCD_SetBrightness(100); // set brightness to 100%
-    memset((void *)g_fblist[0], 0, FB_SIZE_BYTES); // clear first framebuffer
-    memset((void *)g_fblist[1], 0, FB_SIZE_BYTES); // clear second framebuffer
+    Framebuffer_Clear();
 
     // Initial hello
     int line = 0;
@@ -128,13 +140,13 @@ int main(void)
     if (FATFS_LinkDriver(&SD_Driver, sdpath) != 0)
     {
         BSP_LCD_DisplayStringAtLine(line++, "Failed to load SD card driver");
-        while (1) { HAL_Delay(1000); }
+        I_Error("Failed to load SD card driver");
     }
     FRESULT fr = f_mount(&sdfatfs, (TCHAR const *)sdpath, 1);
     if (fr != FR_OK)
     {
         BSP_LCD_DisplayStringAtLine(line++, "Error: Failed to mount SD card.");
-        while (1) { HAL_Delay(1000); }
+        I_Error("Error: Failed to mount SD card. (%d)", fr);
     }
     // from now on fopen() and other stdio functions will work with the SD card
     BSP_LED_Off(LED1); // MCU init complete
@@ -142,8 +154,7 @@ int main(void)
     // Prepare main loop
     char *argv[] = { "doom.exe" };
     doomgeneric_Create(sizeof(argv)/sizeof(argv[0]), argv);
-    memset((void *)g_fblist[0], 0, FB_SIZE_BYTES);
-    memset((void *)g_fblist[1], 0, FB_SIZE_BYTES);
+    Framebuffer_Clear();
 
     HAL_LTDC_ProgramLineEvent(&hltdc_discovery, 0);
     int fpscounter = 0;
@@ -161,10 +172,13 @@ int main(void)
         cyclecount += DWT->CYCCNT - framestart; // count cycles used for this frame
         if (HAL_GetTick() > nextfpsupdate)
         {
+            // ratio: CPU cycles spent on Doom vs total CPU cycles in 1 second
             const float cpuload = (float)cyclecount / HAL_RCC_GetHCLKFreq();
-            printf("\rFPS %2i CPU%3u%%", fpscounter, (int)(cpuload * 100));
+            printf("\rFPS %2i CPU%3u%% VSYNC%3u Hz",
+                   fpscounter, (int)(cpuload * 100), g_vsync_count);
             cyclecount = 0;
             fpscounter = 0;
+            g_vsync_count = 0;
             nextfpsupdate += 1000;
         }
 
@@ -175,6 +189,12 @@ int main(void)
     }
 
     return 0;
+}
+
+static void Framebuffer_Clear(void)
+{
+    memset((void *)g_fblist[0], 0, FB_SIZE_BYTES); // clear first framebuffer
+    memset((void *)g_fblist[1], 0, FB_SIZE_BYTES); // clear second framebuffer
 }
 
 void DG_Init() // called by Doom during init
@@ -203,6 +223,7 @@ void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
         BSP_LED_Toggle(LED2); /* some developer feedback */
     }
     HAL_LTDC_ProgramLineEvent(hltdc, 0); // setup next VSYNC callback
+    g_vsync_count++;
 }
 
 /** @brief Give the address and size of the zone memory.  */
@@ -213,6 +234,40 @@ uint8_t *I_ZoneBase (int *size)
     printf("zonemem address: %p\n", (void*)zonemem);
     *size = SDRAM_END - zonemem;
     return (uint8_t*) zonemem;
+}
+
+void I_Error(char *error, ...)
+{
+    static bool already_quitting = false;
+    char msgbuf[256];
+    va_list argptr;
+
+    if (already_quitting)
+    {
+        return;
+    }
+    already_quitting = true;
+
+    va_start(argptr, error);
+    vsnprintf(msgbuf, sizeof(msgbuf), error, argptr);
+    va_end(argptr);
+
+    // Try to emit the error to the display. Keep the last framebuffer visible
+    // but draw the error string to the top left corner
+    __HAL_LTDC_DISABLE_IT(&hltdc_discovery, LTDC_IT_LI);
+    BSP_LCD_DisplayStringAtLine(0, (uint8_t*)msgbuf);
+
+    while(1) // stay forever
+    {
+        // pump out the error message forever
+        // in case UART is connected after the error occurs
+        fprintf(stderr, "%s\n", msgbuf);
+        for (int i = 0; i < 10; ++i)
+        {
+            BSP_LED_Toggle(LED1); // indicate error
+            HAL_Delay_WFI(100);
+        }
+    }
 }
 
 /** @brief  CPU L1-Cache enable.  */
@@ -417,5 +472,22 @@ static void enable_dwt_cycle_counter(void)
     *((volatile uint32_t*)0xE0001FB0) = 0xC5ACCE55; // DWT_LAR unlock
     DWT->CYCCNT = 0;
     DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+}
+
+void HAL_Delay_WFI(uint32_t Delay)
+{
+    uint32_t tickstart = HAL_GetTick();
+    uint32_t wait = Delay;
+
+    /* Add a freq to guarantee minimum wait */
+    if (wait < HAL_MAX_DELAY)
+    {
+        wait += (uint32_t)(uwTickFreq);
+    }
+
+    while ((HAL_GetTick() - tickstart) < wait)
+    {
+        __WFI(); // wait for interrupt
+    }
 }
 
