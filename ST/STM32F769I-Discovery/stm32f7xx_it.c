@@ -39,6 +39,7 @@ extern LTDC_HandleTypeDef hltdc_discovery;
 extern SD_HandleTypeDef uSdHandle;
 extern DMA_HandleTypeDef hdma_usart1_tx;
 extern UART_HandleTypeDef huart1;
+extern DMA2D_HandleTypeDef hdma2d;
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
@@ -162,6 +163,11 @@ void SysTick_Handler(void)
 /*void PPP_IRQHandler(void)
 {
 }*/
+
+void DMA2D_IRQHandler(void)
+{
+  HAL_DMA2D_IRQHandler(&hdma2d);
+}
 
 void LTDC_IRQHandler(void)
 {

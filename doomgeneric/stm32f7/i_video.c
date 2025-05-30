@@ -57,6 +57,9 @@ int usemouse = 0;
 
 #ifdef DMA2D_HW_ACCEL
 
+void HAL_DMA2D_MspInit(DMA2D_HandleTypeDef *hdma2d);
+void HAL_DMA2D_MspDeInit(DMA2D_HandleTypeDef *hdma2d);
+
 static uint32_t dma2d_clut[256]; // palette for STM's DMA2D hardware acceleration
 #define DMA2D_HW_ACCEL_SCALE_2X  // if enabled: scale up the framebuffer 2x
 #ifdef DMA2D_HW_ACCEL_SCALE_2X
@@ -125,8 +128,6 @@ static uint16_t rgb565_palette[256];
 DMA2D_HandleTypeDef hdma2d;
 void DMA2D_Init(void)
 {
-    __HAL_RCC_DMA2D_CLK_ENABLE();
-
     hdma2d.Instance = DMA2D;
     hdma2d.Init.Mode = DMA2D_M2M_PFC;
     hdma2d.Init.ColorMode = DMA2D_OUTPUT_ARGB8888;
@@ -148,6 +149,20 @@ void DMA2D_Init(void)
     VideoBuffer2X = Z_Malloc (4 * SCREENWIDTH * SCREENHEIGHT, PU_STATIC, NULL);
 #endif
 }
+
+void HAL_DMA2D_MspInit(DMA2D_HandleTypeDef *hdma2d)
+{
+    __HAL_RCC_DMA2D_CLK_ENABLE();
+    HAL_NVIC_SetPriority(DMA2D_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(DMA2D_IRQn);
+}
+
+void HAL_DMA2D_MspDeInit(DMA2D_HandleTypeDef *hdma2d)
+{
+    __HAL_RCC_DMA2D_FORCE_RESET();
+    __HAL_RCC_DMA2D_RELEASE_RESET();
+}
+
 #endif
 
 #ifndef DMA2D_HW_ACCEL
@@ -313,11 +328,6 @@ static void scale2x(const uint8_t* src, uint8_t* dest, int w, int h)
 
 static void BlitDoomFrame(const uint8_t *src, uint32_t *dst, int width, int height)
 {
-    if (HAL_DMA2D_GetState(&hdma2d) != HAL_DMA2D_STATE_READY)
-    {
-        HAL_DMA2D_PollForTransfer(&hdma2d, HAL_MAX_DELAY);
-    }
-
 #ifdef DMA2D_HW_ACCEL_SCALE_2X
     scale2x(src, VideoBuffer2X, width, height);
     uint8_t* src_scaled = VideoBuffer2X;
@@ -334,12 +344,16 @@ static void BlitDoomFrame(const uint8_t *src, uint32_t *dst, int width, int heig
     // If the SDRAM memory is not up-to-date, the DMA2D copy will
     // create weird artifacts
     SCB_CleanDCache_by_Addr((uint32_t*)src_scaled, scale * scale * width * height);
-    HAL_DMA2D_Start(&hdma2d,
+    HAL_DMA2D_Start_IT(&hdma2d,
                     (uint32_t)src_scaled,
                     (uint32_t)dst_center,
                     scale*width,
                     scale*height);
-    // HAL_DMA2D_PollForTransfer(&hdma2d, HAL_MAX_DELAY);
+    // sleep until dma2d transfer complete ISR gets called:
+    while (HAL_DMA2D_GetState(&hdma2d) != HAL_DMA2D_STATE_READY)
+    {
+        __WFI();
+    }
 }
 #endif // DMA2D_HW_ACCEL
 

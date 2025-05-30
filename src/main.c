@@ -59,6 +59,7 @@ extern LTDC_HandleTypeDef hltdc_discovery; // display handle
 extern pixel_t* DG_ScreenBuffer; // buffer for doom to draw to
 static uint32_t g_vsync_count;
 static bool g_double_buffer_enabled = false;
+
 // Modified from interrupt handler and main code path:
 volatile static int g_fbcur = 1; // index into g_fblist, start in invisible buffer
 volatile static int g_fbready = 0; // safe to swap buffers?
@@ -185,9 +186,10 @@ int main(void)
             nextfpsupdate += 1000;
         }
 
+        /* Wait for the display ISR to consume g_fbready */
         while (g_fbready)
         {
-            __WFI(); // save some power until the display controller is ready
+            __WFI(); // display VSYNC will generate an interrupt
         }
     }
 
