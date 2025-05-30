@@ -12,11 +12,6 @@ uint32_t DG_GetTicksMs()
     return HAL_GetTick();
 }
 
-int DG_GetKey(int* pressed, unsigned char* doomKey)
-{
-    return 0;
-}
-
 void DG_SetWindowTitle(const char * title)
 {
 
@@ -26,5 +21,6 @@ void DG_SetWindowTitle(const char * title)
 /*
 void DG_DrawFrame() { }
 void DG_Init() { }
+int DG_GetKey(int* pressed, unsigned char* doomKey) {}
 */
 

@@ -26,6 +26,7 @@
 #include "sd_diskio.h"
 /* </mass storage> */
 #include "doomgeneric.h"
+#include "doomkeys.h"
 
 /******************************************************************************
  * DEFINES
@@ -40,14 +41,28 @@
 
 // UART
 #define UART_TX_BUF_SIZE     256
+#define UART_RX_BUF_SIZE     2   // must be power of 2
 #define USART_TX_Pin         GPIO_PIN_9
 #define USART_TX_GPIO_Port   GPIOA
 #define USART_RX_Pin         GPIO_PIN_10
 #define USART_RX_GPIO_Port   GPIOA
+#define UART_KEY_HOLD_MS     100 // mark a key as released after xxx ms over uart
 
 /******************************************************************************
  * TYPEDEFS
  ******************************************************************************/
+
+/******************************************************************************
+ * GLOBAL DATA DEFINITIONS
+ ******************************************************************************/
+
+// Double Buffering
+extern LTDC_HandleTypeDef hltdc_discovery; // display handle
+extern pixel_t* DG_ScreenBuffer; // buffer for doom to draw to
+
+// UART
+UART_HandleTypeDef  huart1;
+DMA_HandleTypeDef   hdma_usart1_tx;
 
 /******************************************************************************
  * LOCAL DATA DEFINITIONS
@@ -55,8 +70,6 @@
 
 // Double Buffering
 static uint32_t g_fblist[2];
-extern LTDC_HandleTypeDef hltdc_discovery; // display handle
-extern pixel_t* DG_ScreenBuffer; // buffer for doom to draw to
 static uint32_t g_vsync_count;
 static bool g_double_buffer_enabled = false;
 
@@ -65,8 +78,9 @@ volatile static int g_fbcur = 1; // index into g_fblist, start in invisible buff
 volatile static int g_fbready = 0; // safe to swap buffers?
 
 // UART
-UART_HandleTypeDef  huart1;
-DMA_HandleTypeDef   hdma_usart1_tx;
+static uint8_t g_uart_rx_byte;
+static uint8_t g_uart_rx_buf[UART_RX_BUF_SIZE];
+static int g_uart_rx_buf_size; // number of bytes in g_uart_rx_buf
 
 /******************************************************************************
  * LOCAL FUNCTION PROTOTYPES
@@ -287,6 +301,98 @@ void I_DoubleBufferEnable(int enable)
     g_double_buffer_enabled = enable ? true : false;
 }
 
+static int map_ascii_to_doom(uint8_t c)
+{
+    // normalize uppercase
+    if (c >= 'A' && c <= 'Z')
+        c += 'a' - 'A';
+
+    switch (c)
+    {
+        // Movement
+        case 'w': return KEY_UPARROW;
+        case 's': return KEY_DOWNARROW;
+        case 'a': return KEY_LEFTARROW;
+        case 'd': return KEY_RIGHTARROW;
+
+        // Strafing
+        case 'q': return KEY_STRAFE_L;
+        case 'e': return KEY_STRAFE_R;
+
+        // Use & Fire
+        case 'z': return KEY_USE;      // default was space
+        case ' ': return KEY_FIRE;     // default was ctrl
+
+        // Common controls
+        case '\r': return KEY_ENTER;
+        case 27:   return KEY_ESCAPE;  // ESC
+        case '\t': return KEY_TAB;
+        case '+':  return KEY_EQUALS;
+        case '-':  return KEY_MINUS;
+        case 'p':  return KEY_PAUSE;
+        case 'm':  return 'm';         // automap
+        case 't':  return 't';         // talk
+
+        // Weapons
+        case '1': return '1';
+        case '2': return '2';
+        case '3': return '3';
+        case '4': return '4';
+        case '5': return '5';
+        case '6': return '6';
+        case '7': return '7';
+        case '8': return '8';
+        case '9': return '9';
+
+        default: return 0;
+    }
+}
+
+static uint8_t keypressed[256]; // key pressed state
+static uint32_t keypressedlast[256]; // key pressed time
+int DG_GetKey(int* pressed, unsigned char* doomKey)
+{
+    uint32_t time = HAL_GetTick();
+
+    while (g_uart_rx_buf_size > 0)
+    {
+        __disable_irq(); // disable interrupts
+        g_uart_rx_buf_size--;
+        uint8_t key = g_uart_rx_buf[g_uart_rx_buf_size];
+        __enable_irq(); // enable interrupts
+
+        key = map_ascii_to_doom(key);
+        if (key)
+        {
+            keypressed[key] = 1;
+            keypressedlast[key] = time; // record the time of the key press
+
+            *pressed = 1; // key is pressed
+            *doomKey = key;
+
+            return 1; // key found
+        }
+    }
+
+    int debounce = UART_KEY_HOLD_MS;
+    for (int i=0; i<256; i++)
+    {
+        if (!keypressed[i])
+            continue;
+
+        // check if the key is still pressed
+        if (time - keypressedlast[i] > debounce)
+        {
+            keypressed[i] = 0;
+            *pressed = 0;
+            *doomKey = i;
+            return 1; // key is no longer pressed
+        }
+    }
+
+    return 0;
+}
+
 /** @brief  CPU L1-Cache enable.  */
 static void CPU_CACHE_Enable(void)
 {
@@ -406,6 +512,23 @@ static void MX_USART1_UART_Init(void)
     huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
     huart1.Init.OverSampling = UART_OVERSAMPLING_16;
     HAL_UART_Init(&huart1);
+
+    HAL_UART_Receive_IT(&huart1, (uint8_t *)&g_uart_rx_byte, 1);
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART1)
+    {
+        if (g_uart_rx_buf_size < UART_RX_BUF_SIZE)
+        {
+            g_uart_rx_buf[g_uart_rx_buf_size] = g_uart_rx_byte;
+            g_uart_rx_buf_size++;
+        }
+
+        // Restart the UART receive interrupt
+        HAL_UART_Receive_IT(huart, (uint8_t *)&g_uart_rx_byte, 1);
+    }
 }
 
 void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
