@@ -198,7 +198,7 @@ void D_Display (void)
     // save the current screen if about to wipe
     if (gamestate != wipegamestate)
 		{
-		wipe = true;
+		wipe = false; // true; // FIXME jnz: disabled wipe for now, conflicts with double buffering
 		wipe_StartScreen(0, 0, SCREENWIDTH, SCREENHEIGHT);
     }
     else
