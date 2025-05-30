@@ -58,6 +58,7 @@ static uint32_t g_fblist[2];
 extern LTDC_HandleTypeDef hltdc_discovery; // display handle
 extern pixel_t* DG_ScreenBuffer; // buffer for doom to draw to
 static uint32_t g_vsync_count;
+static bool g_double_buffer_enabled = false;
 // Modified from interrupt handler and main code path:
 volatile static int g_fbcur = 1; // index into g_fblist, start in invisible buffer
 volatile static int g_fbready = 0; // safe to swap buffers?
@@ -90,6 +91,7 @@ static void enable_dwt_cycle_counter(void);
 void HAL_Delay_WFI(uint32_t Delay);
 // Doom error functions
 void I_Error(char *error, ...);
+void I_DoubleBufferEnable(int enable);
 
 /******************************************************************************
  * FUNCTION PROTOTYPES
@@ -156,6 +158,7 @@ int main(void)
     doomgeneric_Create(sizeof(argv)/sizeof(argv[0]), argv);
     Framebuffer_Clear();
 
+    I_DoubleBufferEnable(1);
     HAL_LTDC_ProgramLineEvent(&hltdc_discovery, 0);
     int fpscounter = 0;
     uint32_t nextfpsupdate = HAL_GetTick() + 1000;
@@ -218,7 +221,10 @@ void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
         __DSB();
         __HAL_LTDC_RELOAD_CONFIG(hltdc);
 
-        g_fbcur = 1 - g_fbcur;
+        if (g_double_buffer_enabled)
+        {
+            g_fbcur = 1 - g_fbcur;
+        }
         g_fbready = 0;
         BSP_LED_Toggle(LED2); /* some developer feedback */
     }
@@ -272,6 +278,11 @@ void I_Error(char *error, ...)
             HAL_Delay_WFI(100);
         }
     }
+}
+
+void I_DoubleBufferEnable(int enable)
+{
+    g_double_buffer_enabled = enable ? true : false;
 }
 
 /** @brief  CPU L1-Cache enable.  */
