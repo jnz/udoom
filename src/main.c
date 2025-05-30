@@ -54,10 +54,11 @@
 
 // Double Buffering
 static uint32_t g_fblist[2];
-static int g_fbcur = 1; // index into g_fblist, start in invisible buffer
-static int g_fbready = 0; // safe to swap buffers?
 extern LTDC_HandleTypeDef hltdc_discovery; // display handle
 extern pixel_t* DG_ScreenBuffer; // buffer for doom to draw to
+// Modified from interrupt handler and main code path:
+volatile static int g_fbcur = 1; // index into g_fblist, start in invisible buffer
+volatile static int g_fbready = 0; // safe to swap buffers?
 
 // UART
 UART_HandleTypeDef  huart1;
@@ -176,16 +177,6 @@ int main(void)
     return 0;
 }
 
-/** @brief Give the address and size of the zone memory.  */
-uint8_t *I_ZoneBase (int *size)
-{
-    // Improvement: handle this via linker script
-    uint32_t zonemem = g_fblist[1] + FB_SIZE_BYTES;
-    printf("zonemem address: %p\n", (void*)zonemem);
-    *size = SDRAM_END - zonemem;
-    return (uint8_t*) zonemem;
-}
-
 void DG_Init() // called by Doom during init
 {
     // give Doom something to draw to
@@ -212,6 +203,16 @@ void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
         BSP_LED_Toggle(LED2); /* some developer feedback */
     }
     HAL_LTDC_ProgramLineEvent(hltdc, 0); // setup next VSYNC callback
+}
+
+/** @brief Give the address and size of the zone memory.  */
+uint8_t *I_ZoneBase (int *size)
+{
+    // Improvement: handle this via linker script
+    uint32_t zonemem = g_fblist[1] + FB_SIZE_BYTES;
+    printf("zonemem address: %p\n", (void*)zonemem);
+    *size = SDRAM_END - zonemem;
+    return (uint8_t*) zonemem;
 }
 
 /** @brief  CPU L1-Cache enable.  */
