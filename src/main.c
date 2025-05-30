@@ -252,9 +252,13 @@ void I_Error(char *error, ...)
     vsnprintf(msgbuf, sizeof(msgbuf), error, argptr);
     va_end(argptr);
 
-    // Try to emit the error to the display. Keep the last framebuffer visible
-    // but draw the error string to the top left corner
+    // Try to emit the error to the display. Go to framebuffer 0.
+    // then draw the error string to the top left corner
     __HAL_LTDC_DISABLE_IT(&hltdc_discovery, LTDC_IT_LI);
+    g_fbready = 0;
+    LTDC_LAYER(&hltdc_discovery, 0)->CFBAR = ((uint32_t)g_fblist[0]);
+    __DSB();
+    __HAL_LTDC_RELOAD_CONFIG(&hltdc_discovery);
     BSP_LCD_DisplayStringAtLine(0, (uint8_t*)msgbuf);
 
     while(1) // stay forever
