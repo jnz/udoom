@@ -1,3 +1,17 @@
+/*
+   | |
+   _   _  __| | ___   ___  _ __ ___
+   | | | |/ _` |/ _ \ / _ \| '_ ` _ \
+   | |_| | (_| | (_) | (_) | | | | | |
+   \__,_|\__,_|\___/ \___/|_| |_| |_|
+
+   Doom for the STM32F7 microcontroller
+   */
+
+/******************************************************************************
+ * INCLUDE FILES
+ ******************************************************************************/
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -10,36 +24,62 @@
 #include "ff_gen_drv.h"
 #include "sd_diskio.h"
 /* </mass storage> */
-#include "doomgeneric.h" // application specific
+#include "doomgeneric.h"
 
-// DEFINES
+/******************************************************************************
+ * DEFINES
+ ******************************************************************************/
+
+// Framebuffer
 #define BYTES_PER_PIXEL  4
 #define SDRAM_BASE       LCD_FB_START_ADDRESS
 #define SDRAM_SIZE       (8 * 1024 * 1024)  // MB
 #define SDRAM_END        (SDRAM_BASE + SDRAM_SIZE)
 #define FB_SIZE_BYTES    (BSP_LCD_GetXSize() * BSP_LCD_GetYSize() * BYTES_PER_PIXEL)
 
+// UART
+#define UART_TX_BUF_SIZE     256
+#define USART_TX_Pin         GPIO_PIN_9
+#define USART_TX_GPIO_Port   GPIOA
+#define USART_RX_Pin         GPIO_PIN_10
+#define USART_RX_GPIO_Port   GPIOA
+
+/******************************************************************************
+ * TYPEDEFS
+ ******************************************************************************/
+
+/******************************************************************************
+ * LOCAL DATA DEFINITIONS
+ ******************************************************************************/
+
+// Double Buffering
+static uint32_t g_fblist[2];
+static int g_fbcur = 1; // index into g_fblist, start in invisible buffer
+static int g_fbready = 0; // safe to swap buffers?
+extern LTDC_HandleTypeDef hltdc_discovery; // display handle
+extern pixel_t* DG_ScreenBuffer; // buffer for doom to draw to
+
+// UART
+UART_HandleTypeDef  huart1;
+DMA_HandleTypeDef   hdma_usart1_tx;
+
+/******************************************************************************
+ * LOCAL FUNCTION PROTOTYPES
+ ******************************************************************************/
+
 // MCU config
 static void MPU_Config(void);
 static void CPU_CACHE_Enable(void);
 static void SystemClock_Config(void);
-// Double Buffering
-static uint32_t g_fblist[2]; // populated at init
-static int g_fbcur = 1; // start in invisible buffer
-static int g_fbready = 0; // safe to swap buffers?
-extern LTDC_HandleTypeDef hltdc_discovery; // display
-extern pixel_t* DG_ScreenBuffer; // buffer for doom to draw to
 // UART
-#define UART_TX_BUF_SIZE        256
-#define USART_TX_Pin            GPIO_PIN_9
-#define USART_TX_GPIO_Port      GPIOA
-#define USART_RX_Pin            GPIO_PIN_10
-#define USART_RX_GPIO_Port      GPIOA
-UART_HandleTypeDef              huart1;
-DMA_HandleTypeDef               hdma_usart1_tx;
 static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
+// Profiler with cycle counter
 static void enable_dwt_cycle_counter(void);
+
+/******************************************************************************
+ * FUNCTION PROTOTYPES
+ ******************************************************************************/
 
 int main(void)
 {
@@ -107,17 +147,17 @@ int main(void)
     HAL_LTDC_ProgramLineEvent(&hltdc_discovery, 0);
     int fpscounter = 0;
     uint32_t nextfpsupdate = HAL_GetTick() + 1000;
-    uint32_t cyclecount = 0;
-    while (1)
+    uint32_t cyclecount = 0; // cycles used for Doom (reset every second)
+    while (1) /* main loop */
     {
-        // Prepare the framebuffer for drawing
-        const uint32_t framestart = DWT->CYCCNT;
+        const uint32_t framestart = DWT->CYCCNT; // CPU usage helper
 
+        // Prepare the framebuffer for drawing
         DG_ScreenBuffer = (pixel_t*)g_fblist[g_fbcur];
         doomgeneric_Tick();
         fpscounter++;
 
-        cyclecount += DWT->CYCCNT - framestart;
+        cyclecount += DWT->CYCCNT - framestart; // count cycles used for this frame
         if (HAL_GetTick() > nextfpsupdate)
         {
             const float cpuload = (float)cyclecount / HAL_RCC_GetHCLKFreq();
@@ -148,6 +188,7 @@ uint8_t *I_ZoneBase (int *size)
 
 void DG_Init() // called by Doom during init
 {
+    // give Doom something to draw to
     DG_ScreenBuffer = (pixel_t*)g_fblist[g_fbcur];
 }
 
@@ -156,7 +197,7 @@ void DG_DrawFrame() // called by Doom at the end of a frame
     g_fbready = 1; // indicate that we can swap the frame
 }
 
-/** @brief  LTDC line event callback. Ready to draw the next frame.  */
+/** @brief LTDC line event callback. Ready to draw the next frame.  */
 void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
 {
     if (g_fbready) // ready to swap frames?
@@ -173,21 +214,15 @@ void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
     HAL_LTDC_ProgramLineEvent(hltdc, 0); // setup next VSYNC callback
 }
 
-/**
-  * @brief  CPU L1-Cache enable.
-  * @param  None
-  * @retval None
-  */
+/** @brief  CPU L1-Cache enable.  */
 static void CPU_CACHE_Enable(void)
 {
-  /* Enable I-Cache */
-  SCB_EnableICache();
-
-  /* Enable D-Cache */
-  SCB_EnableDCache();
+    SCB_EnableICache();
+    SCB_EnableDCache();
 }
 
-/* The SD card stuff apparently works better with a 200 MHz configuration */
+/* The SD card stuff should run with a 200 MHz MCU configuration according to
+ * the readme.txt of ST */
 static void SystemClock_Config(void)
 {
     HAL_StatusTypeDef ret = HAL_OK;
@@ -231,70 +266,60 @@ static void SystemClock_Config(void)
     }
 }
 
-/**
-  * @brief  Configure the MPU attributes
-  * @param  None
-  * @retval None
-  */
-/**
-  * @brief  Configure the MPU attributes
-  * @param  None
-  * @retval None
-  */
 static void MPU_Config(void)
 {
-  MPU_Region_InitTypeDef MPU_InitStruct;
+    MPU_Region_InitTypeDef MPU_InitStruct;
 
-  /* Disable the MPU */
-  HAL_MPU_Disable();
+    /* Disable the MPU */
+    HAL_MPU_Disable();
 
-  /* Configure the MPU as Strongly ordered for not defined regions */
-  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-  MPU_InitStruct.BaseAddress = 0x00;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
-  MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
-  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
-  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
-  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-  MPU_InitStruct.SubRegionDisable = 0x87;
-  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+    /* Configure the MPU as Strongly ordered for not defined regions */
+    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+    MPU_InitStruct.BaseAddress = 0x00;
+    MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
+    MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
+    MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+    MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+    MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+    MPU_InitStruct.Number = MPU_REGION_NUMBER0;
+    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+    MPU_InitStruct.SubRegionDisable = 0x87;
+    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
 
-  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+    HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
-  /* Configure the MPU attributes as WT for SDRAM */
-  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-  MPU_InitStruct.BaseAddress = 0xC0000000;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_32MB;
-  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
-  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
-  MPU_InitStruct.Number = MPU_REGION_NUMBER1;
-  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-  MPU_InitStruct.SubRegionDisable = 0x00;
-  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+    /* Configure the MPU attributes as WT for SDRAM */
+    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+    MPU_InitStruct.BaseAddress = 0xC0000000;
+    MPU_InitStruct.Size = MPU_REGION_SIZE_32MB;
+    MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+    MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+    MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+    MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+    MPU_InitStruct.Number = MPU_REGION_NUMBER1;
+    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+    MPU_InitStruct.SubRegionDisable = 0x00;
+    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
 
-  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+    HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
-  /* Configure the MPU attributes FMC control registers */
-  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-  MPU_InitStruct.BaseAddress = 0xA0000000;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_8KB;
-  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
-  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
-  MPU_InitStruct.Number = MPU_REGION_NUMBER2;
-  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-  MPU_InitStruct.SubRegionDisable = 0x0;
-  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+    /* Configure the MPU attributes FMC control registers */
+    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+    MPU_InitStruct.BaseAddress = 0xA0000000;
+    MPU_InitStruct.Size = MPU_REGION_SIZE_8KB;
+    MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+    MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
+    MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+    MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+    MPU_InitStruct.Number = MPU_REGION_NUMBER2;
+    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+    MPU_InitStruct.SubRegionDisable = 0x0;
+    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
 
-  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+    HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
-  /* Enable the MPU */
-  HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
+    /* Enable the MPU */
+    HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 }
 
 static void MX_USART1_UART_Init(void)
@@ -321,9 +346,9 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
         __HAL_RCC_DMA2_CLK_ENABLE();  // USART1 uses DMA2
 
         /**USART1 GPIO Configuration
-        PA9  ------> USART1_TX
-        PA10 ------> USART1_RX
-        */
+          PA9  ------> USART1_TX
+          PA10 ------> USART1_RX
+          */
         GPIO_InitStruct.Pin = GPIO_PIN_9 | GPIO_PIN_10;
         GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
         GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -372,9 +397,11 @@ static void MX_DMA_Init(void)
     HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);
 }
 
+/* syscalls.c will call this function for stdout and stderr,
+ * redirects to USART1. */
 int __io_putchar(int ch)
 {
-    if (ch == '\n')
+    if (ch == '\n') /* play nice with putty */
     {
         char r = '\r';
         HAL_UART_Transmit(&huart1, (const uint8_t*)&r, 1, 1);
@@ -390,3 +417,4 @@ static void enable_dwt_cycle_counter(void)
     DWT->CYCCNT = 0;
     DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
 }
+

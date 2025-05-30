@@ -1,26 +1,12 @@
-// Emacs style mode select   -*- C++ -*- 
-//-----------------------------------------------------------------------------
-//
-// $Id:$
-//
-// Copyright (C) 1993-1996 by id Software, Inc.
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; either version 2
-// of the License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// $Log:$
-//
-// DESCRIPTION:
-//	DOOM graphics stuff for X11, UNIX.
-//
-//-----------------------------------------------------------------------------
+/*
+              | |
+     _   _  __| | ___   ___  _ __ ___
+    | | | |/ _` |/ _ \ / _ \| '_ ` _ \
+    | |_| | (_| | (_) | (_) | | | | | |
+     \__,_|\__,_|\___/ \___/|_| |_| |_|
+
+   Doom for the STM32F7 microcontroller
+*/
 
 #include "config.h"
 #include "v_video.h"
@@ -46,24 +32,23 @@
 
 struct FB_BitField
 {
-	uint32_t offset;			/* beginning of bitfield	*/
-	uint32_t length;			/* length of bitfield		*/
+    uint32_t offset;            /* beginning of bitfield    */
+    uint32_t length;            /* length of bitfield       */
 };
 
 struct FB_ScreenInfo
 {
-	uint32_t xres;			/* visible resolution		*/
-	uint32_t yres;
-	uint32_t xres_virtual;		/* virtual resolution		*/
-	uint32_t yres_virtual;
+    uint32_t xres;              /* visible resolution       */
+    uint32_t yres;
+    uint32_t xres_virtual;      /* virtual resolution       */
+    uint32_t yres_virtual;
 
-	uint32_t bits_per_pixel;		/* guess what			*/
-	
-							/* >1 = FOURCC			*/
-	struct FB_BitField red;		/* bitfield in s_Fb mem if true color, */
-	struct FB_BitField green;	/* else only length is significant */
-	struct FB_BitField blue;
-	struct FB_BitField transp;	/* transparency			*/
+    uint32_t bits_per_pixel;
+
+    struct FB_BitField red;     /* bitfield in s_Fb mem if true color, */
+    struct FB_BitField green;   /* else only length is significant */
+    struct FB_BitField blue;
+    struct FB_BitField transp;  /* transparency         */
 };
 
 static struct FB_ScreenInfo s_Fb;
@@ -72,8 +57,8 @@ int usemouse = 0;
 
 #ifdef DMA2D_HW_ACCEL
 
-static uint32_t dma2d_clut[256]; // palette for DMA2D hardware acceleration
-#define DMA2D_HW_ACCEL_SCALE_2X
+static uint32_t dma2d_clut[256]; // palette for STM's DMA2D hardware acceleration
+#define DMA2D_HW_ACCEL_SCALE_2X  // if enabled: scale up the framebuffer 2x
 #ifdef DMA2D_HW_ACCEL_SCALE_2X
 static byte* VideoBuffer2X;
 #endif
@@ -127,9 +112,9 @@ int usegamma = 0;
 
 typedef struct
 {
-	byte r;
-	byte g;
-	byte b;
+    byte r;
+    byte g;
+    byte b;
 } col_t;
 
 // Palette converted to RGB565
@@ -174,7 +159,7 @@ void cmap_to_rgb565(uint16_t * out, uint8_t * in, int in_pixels)
 
     for (i = 0; i < in_pixels; i++)
     {
-        c = colors[*in]; 
+        c = colors[*in];
         r = ((uint16_t)(c.r >> 3)) << 11;
         g = ((uint16_t)(c.g >> 2)) << 5;
         b = ((uint16_t)(c.b >> 3)) << 0;
@@ -224,31 +209,31 @@ void I_InitGraphics (void)
     DMA2D_Init();
 #endif
 
-	memset(&s_Fb, 0, sizeof(struct FB_ScreenInfo));
+    memset(&s_Fb, 0, sizeof(struct FB_ScreenInfo));
 
-	s_Fb.xres = BSP_LCD_GetXSize();
-	s_Fb.yres = BSP_LCD_GetYSize();
-	s_Fb.xres_virtual = s_Fb.xres;
-	s_Fb.yres_virtual = s_Fb.yres;
+    s_Fb.xres = BSP_LCD_GetXSize();
+    s_Fb.yres = BSP_LCD_GetYSize();
+    s_Fb.xres_virtual = s_Fb.xres;
+    s_Fb.yres_virtual = s_Fb.yres;
 
 #ifdef CMAP256
 
-	s_Fb.bits_per_pixel = 8;
+    s_Fb.bits_per_pixel = 8;
 
 #else  // CMAP256
 
-	s_Fb.bits_per_pixel = 32;
+    s_Fb.bits_per_pixel = 32;
 
-	s_Fb.blue.length = 8;
-	s_Fb.green.length = 8;
-	s_Fb.red.length = 8;
-	s_Fb.transp.length = 8;
+    s_Fb.blue.length = 8;
+    s_Fb.green.length = 8;
+    s_Fb.red.length = 8;
+    s_Fb.transp.length = 8;
 
-	s_Fb.blue.offset = 0;
-	s_Fb.green.offset = 8;
-	s_Fb.red.offset = 16;
-	s_Fb.transp.offset = 24;
-	
+    s_Fb.blue.offset = 0;
+    s_Fb.green.offset = 8;
+    s_Fb.red.offset = 16;
+    s_Fb.transp.offset = 24;
+
 #endif  // CMAP256
 
     printf("I_InitGraphics: framebuffer: x_res: %u, y_res: %u, x_virtual: %d, y_virtual: %d, bpp: %d\n",
@@ -274,9 +259,9 @@ void I_InitGraphics (void)
 
 
     /* Allocate screen to draw to */
-	// I_VideoBuffer = (byte*)Z_Malloc (SCREENWIDTH * SCREENHEIGHT, PU_STATIC, NULL);  // For DOOM to draw on
+    // I_VideoBuffer = (byte*)Z_Malloc (SCREENWIDTH * SCREENHEIGHT, PU_STATIC, NULL);  // For DOOM to draw on
 
-	screenvisible = true;
+    screenvisible = true;
 
     extern void I_InitInput(void);
     I_InitInput();
@@ -284,7 +269,7 @@ void I_InitGraphics (void)
 
 void I_ShutdownGraphics (void)
 {
-	// Z_Free (I_VideoBuffer);
+    // Z_Free (I_VideoBuffer);
 }
 
 void I_StartFrame (void)
@@ -294,7 +279,7 @@ void I_StartFrame (void)
 
 void I_StartTic (void)
 {
-	I_GetEvent();
+    I_GetEvent();
 }
 
 void I_UpdateNoBlit (void)
@@ -412,7 +397,7 @@ void I_FinishUpdate (void)
     }
 #endif
 
-	DG_DrawFrame();
+    DG_DrawFrame();
 }
 
 //
@@ -426,10 +411,10 @@ void I_ReadScreen (byte* scr)
 //
 // I_SetPalette
 //
-#define GFX_RGB565(r, g, b)			((((r & 0xF8) >> 3) << 11) | (((g & 0xFC) >> 2) << 5) | ((b & 0xF8) >> 3))
-#define GFX_RGB565_R(color)			((0xF800 & color) >> 11)
-#define GFX_RGB565_G(color)			((0x07E0 & color) >> 5)
-#define GFX_RGB565_B(color)			(0x001F & color)
+#define GFX_RGB565(r, g, b)         ((((r & 0xF8) >> 3) << 11) | (((g & 0xFC) >> 2) << 5) | ((b & 0xF8) >> 3))
+#define GFX_RGB565_R(color)         ((0xF800 & color) >> 11)
+#define GFX_RGB565_G(color)         ((0x07E0 & color) >> 5)
+#define GFX_RGB565_B(color)         (0x001F & color)
 
 void I_SetPalette (byte* palette)
 {
@@ -485,9 +470,9 @@ int I_GetPaletteIndex (int r, int g, int b)
 
     for (i = 0; i < 256; ++i)
     {
-    	color.r = GFX_RGB565_R(rgb565_palette[i]);
-    	color.g = GFX_RGB565_G(rgb565_palette[i]);
-    	color.b = GFX_RGB565_B(rgb565_palette[i]);
+        color.r = GFX_RGB565_R(rgb565_palette[i]);
+        color.g = GFX_RGB565_G(rgb565_palette[i]);
+        color.b = GFX_RGB565_B(rgb565_palette[i]);
 
         diff = (r - color.r) * (r - color.r)
              + (g - color.g) * (g - color.g)
@@ -518,7 +503,7 @@ void I_EndRead (void)
 
 void I_SetWindowTitle (char *title)
 {
-	DG_SetWindowTitle(title);
+    DG_SetWindowTitle(title);
 }
 
 void I_GraphicsCheckCommandLine (void)

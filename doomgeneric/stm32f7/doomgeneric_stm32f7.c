@@ -24,14 +24,7 @@ void DG_SetWindowTitle(const char * title)
 
 /* moved to main.c */
 /*
-void DG_DrawFrame()
-{
-
-}
-
-void DG_Init()
-{
-
-}
-
+void DG_DrawFrame() { }
+void DG_Init() { }
 */
+

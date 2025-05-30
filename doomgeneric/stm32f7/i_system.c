@@ -83,46 +83,14 @@ void I_PrintStartupBanner(char *gamedescription)
 //
 // Returns true if stdout is a real console, false if it is a file
 //
-
 boolean I_ConsoleStdout(void)
 {
-    return 0;
+    return true;
 }
-
-//
-// I_Init
-//
-/*
-void I_Init (void)
-{
-    I_CheckIsScreensaver();
-    I_InitTimer();
-    I_InitJoystick();
-}
-void I_BindVariables(void)
-{
-    I_BindVideoVariables();
-    I_BindJoystickVariables();
-    I_BindSoundVariables();
-}
-*/
-
-//
-// I_Quit
-//
 
 void I_Quit (void)
 {
-
 }
-
-//
-// I_Error
-//
-
-#ifndef STM32F769xx
-static boolean already_quitting = false;
-#endif
 
 void I_Error (char *error, ...)
 {
@@ -131,7 +99,7 @@ void I_Error (char *error, ...)
 
 boolean I_GetMemoryValue(unsigned int offset, void *value, int size)
 {
-    while(1) {}
+    while(1) {} // Not implemented
     return false;
 }
 
