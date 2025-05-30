@@ -474,6 +474,8 @@ static void MX_DMA_Init(void)
  * redirects to USART1. */
 int __io_putchar(int ch)
 {
+    /* DMA is not used to simplify things */
+
     if (ch == '\n') /* play nice with putty */
     {
         char r = '\r';
