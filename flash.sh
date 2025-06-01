@@ -1,18 +1,45 @@
 #!/bin/bash
+set -e
 
-FIRMWARE="firmware.bin"
+FIRMWARE_BIN="firmware.bin"
+FIRMWARE_HEX="firmware.hex"
 
-echo
-echo "=== Flash to ST-LINK via st-flash ==="
+QSPI_BASE="0x90000000"
+QSPI_LOADER="W25Q128JVEIQ_STM32F7508-DK.stldr"
+QSPI_LOADER_PATH="/home/jan/developer/ST/bin/ExternalLoader/${QSPI_LOADER}"
 
-# Flash to address 0x08000000 (typischer Flash-Start für STM32)
-st-flash write "$FIRMWARE" 0x8000000
-
-# Fehlerbehandlung
-if [ $? -ne 0 ]; then
-    echo "Flash failed."
-    exit 1
-else
-    echo "Flash successful."
+# Check if QSPI mode was requested via argument
+explicit_qspi=0
+if [ "$1" == "QSPI" ]; then
+    explicit_qspi=1
 fi
+
+if arm-none-eabi-objdump -h "$FIRMWARE_ELF" | grep -q '90000000'; then
+    echo "Detected external QSPI flash firmware. This requires STM32_Programmer_CLI."
+    explicit_qspi=1
+fi
+
+if [ "$explicit_qspi" -eq 1 ] || [ "$uses_qspi" -eq 1 ]; then
+    echo "QSPI firmware selected. Using external loader: $QSPI_LOADER"
+    if [ ! -f "$QSPI_LOADER_PATH" ]; then
+        echo "Error: Loader not found at $QSPI_LOADER_PATH"
+        exit 1
+    fi
+
+    STM32_Programmer_CLI \
+        -c port=SWD \
+        -el "$QSPI_LOADER_PATH" \
+        -d "$FIRMWARE_HEX" "$QSPI_BASE" \
+        -rst
+else
+    if command -v STM32_Programmer_CLI &> /dev/null; then
+        STM32_Programmer_CLI -c port=SWD -d "$FIRMWARE_HEX" -rst
+    else
+        echo "STM32_Programmer_CLI not found, trying st-flash instead..."
+        echo "Using st-flash to internal flash at $FLASH_ADDR..."
+        st-flash write "$FIRMWARE_BIN" "$FLASH_ADDR"
+    fi
+fi
+
+echo "=== Flash complete ==="
 
