@@ -87,6 +87,36 @@ In GDB:
     break main
     continue
 
+For an additional QSPI firmware in GDB:
+
+    file bootloader.elf
+
+Add main firmware symbols:
+
+    add-symbol-file firmware.elf 0x90000000
+
+Or relative to the bootloader directory:
+
+    add-symbol-file ../../../firmware.elf 0x90000000
+
+    info address Reset_Handler
+
+You see something like:
+
+    Symbol "Reset_Handler" is at 0x08000100 in bootloader.elf
+    Symbol "Reset_Handler" is at 0x9003004d in firmware.elf
+
+    break *0x9003004d
+
+(or whatever the real address is)
+
+Debug in GDB with
+
+    n (next)
+    s (step)
+    si (assembler instruction step)
+    finish (to end of function)
+
 DMA2D
 -----
 
