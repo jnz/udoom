@@ -214,3 +214,26 @@ with a max. pool of FatFs file handles (`FIL`):
 
     static FIL g_files[MAX_FILES];
 
+Bootloader for STM32F7508
+-------------------------
+
+The STM32F7508 has 16MB of QSPI flash memory at 0x90000000.
+Now the cumbersome part is that this requires a custom bootloader
+to initialize the QSPI hardware and then jump to the application code.
+
+The custom bootloader can be placed in the 64KB internal flash memory at
+0x08000000. There is a bootloader in the directory `ST/STM32F7508-Discovery/bootloader`.
+This bootloader initializes the QSPI flash and then jumps to the application.
+Use `make` to build the bootloader. Then run `flash.bat` in the directory
+`ST/STM32F7508-Discovery/bootloader` to load the bootloader. If you don't want
+to compile the bootloader, there is a precompiled binary in the same directory
+`bootloader_precompiled.hex`.
+The `flash.bat` script will also setup the `BOOT_ADD0` address for the board:
+
+    echo === Ensuring BOOT_ADD0 is set to internal flash (0x08000000) ===
+    echo Right shift target address by 14 bits (i.e. divide by 16384)
+    STM32_Programmer_CLI.exe -c port=SWD -ob BOOT_ADD0=0x2000
+
+So `BOOT_ADD0` is set to 0x2000 (which means 0x08000000), which is the internal
+flash memory.
+
