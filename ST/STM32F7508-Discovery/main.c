@@ -54,7 +54,8 @@
  ******************************************************************************/
 
 // Double Buffering
-extern LTDC_HandleTypeDef hltdc_discovery; // display handle
+extern LTDC_HandleTypeDef hLtdcHandler;
+static LTDC_HandleTypeDef* phltdc = &hLtdcHandler;
 extern pixel_t* DG_ScreenBuffer; // buffer for doom to draw to
 
 // UART
@@ -167,7 +168,7 @@ int main(void)
     Framebuffer_Clear();
 
     I_DoubleBufferEnable(1);
-    HAL_LTDC_ProgramLineEvent(&hltdc_discovery, 0);
+    HAL_LTDC_ProgramLineEvent(phltdc, 0);
     int fpscounter = 0;
     uint32_t nextfpsupdate = HAL_GetTick() + 1000;
     uint32_t cyclecount = 0; // cycles used for Doom (reset every second)
@@ -269,11 +270,11 @@ void I_Error(char *error, ...)
 
     // Try to emit the error to the display. Go to framebuffer 0.
     // then draw the error string to the top left corner
-    __HAL_LTDC_DISABLE_IT(&hltdc_discovery, LTDC_IT_LI);
+    __HAL_LTDC_DISABLE_IT(phltdc, LTDC_IT_LI);
     g_fbready = 0;
-    LTDC_LAYER(&hltdc_discovery, 0)->CFBAR = ((uint32_t)g_fblist[0]);
+    LTDC_LAYER(phltdc, 0)->CFBAR = ((uint32_t)g_fblist[0]);
     __DSB();
-    __HAL_LTDC_RELOAD_CONFIG(&hltdc_discovery);
+    __HAL_LTDC_RELOAD_CONFIG(phltdc);
     BSP_LCD_DisplayStringAtLine(0, (uint8_t*)msgbuf);
 
     while(1) // stay forever

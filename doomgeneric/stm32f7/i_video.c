@@ -31,6 +31,7 @@
 #define DMA2D_HW_ACCEL
 #else
 #include "stm32f7508_discovery_lcd.h"
+#define DMA2D_HW_ACCEL
 #endif
 
 //#define CMAP256

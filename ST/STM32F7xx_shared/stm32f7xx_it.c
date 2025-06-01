@@ -23,6 +23,14 @@
 #include "stm32f7xx_it.h"
 #ifdef STM32F769xx
 #include "stm32f769i_discovery.h"
+extern LTDC_HandleTypeDef hltdc_discovery;
+static LTDC_HandleTypeDef* phltdc = &hltdc_discovery;
+extern DMA_HandleTypeDef hdma_usart1_tx;
+#endif
+#ifdef STM32F750xx
+#include "stm32f7508_discovery.h"
+extern LTDC_HandleTypeDef hLtdcHandler;
+static LTDC_HandleTypeDef* phltdc = &hLtdcHandler;
 #endif
 
 /** @addtogroup STM32F7xx_HAL_Examples
@@ -37,9 +45,7 @@
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-extern LTDC_HandleTypeDef hltdc_discovery;
 extern SD_HandleTypeDef uSdHandle;
-extern DMA_HandleTypeDef hdma_usart1_tx;
 extern UART_HandleTypeDef huart1;
 extern DMA2D_HandleTypeDef hdma2d;
 /* Private function prototypes -----------------------------------------------*/
@@ -173,7 +179,7 @@ void DMA2D_IRQHandler(void)
 
 void LTDC_IRQHandler(void)
 {
-  HAL_LTDC_IRQHandler(&hltdc_discovery);
+  HAL_LTDC_IRQHandler(phltdc);
 }
 
 /**
@@ -206,10 +212,12 @@ void BSP_SDMMC2_IRQHandler(void)
 /**
  * @brief This function handles DMA2 stream7 global interrupt.
  */
+#ifdef STM32F769xx
 void DMA2_Stream7_IRQHandler(void)
 {
     HAL_DMA_IRQHandler(&hdma_usart1_tx);
 }
+#endif
 
 /**
  * @brief This function handles USART1 global interrupt.

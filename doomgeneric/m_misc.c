@@ -57,7 +57,7 @@ void M_MakeDirectory(char *path)
 #ifdef _WIN32
     mkdir(path);
 #else
-    #ifndef STM32F769xx
+    #ifndef USE_HAL_DRIVER
         mkdir(path, 0755);
     #endif
 #endif
