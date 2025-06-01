@@ -95,8 +95,12 @@ void I_GetEvent(void);
 
 // The screen buffer; this is modified to draw things to the screen
 
+#ifdef STM32F769xx
 byte VideoBuffer[SCREENWIDTH * SCREENHEIGHT];
 byte *I_VideoBuffer = VideoBuffer;
+#else
+byte *I_VideoBuffer;
+#endif
 
 // If true, game is running as a screensaver
 
@@ -295,7 +299,9 @@ void I_InitGraphics (void)
 
 
     /* Allocate screen to draw to */
-    // I_VideoBuffer = (byte*)Z_Malloc (SCREENWIDTH * SCREENHEIGHT, PU_STATIC, NULL);  // For DOOM to draw on
+#ifndef STM32F769xx
+    I_VideoBuffer = (byte*)Z_Malloc (SCREENWIDTH * SCREENHEIGHT, PU_STATIC, NULL);  // For DOOM to draw on
+#endif
 
     screenvisible = true;
 
