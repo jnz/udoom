@@ -21,16 +21,37 @@ Download and extract the ARM GCC toolchain (tested with version 13.3.rel1):
 
 Extract to a folder.
 
-Edit `config.mk` and point `TOOLCHAIN_ROOT` to that folder (ensure it ends with a slash):
+Edit `config.mk` and point `TOOLCHAIN_ROOT` to that folder (ensure it ends with a slash!).
+On Linux e.g.:
+
+    TOOLCHAIN_ROOT= /home/user/arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi/bin/
+
+On Windows e.g.:
 
     TOOLCHAIN_ROOT=C:/Tools/arm-gnu-toolchain-13.3.rel1-mingw-w64-i686-arm-none-eabi/bin/
 
 Then run make.
 
-Debugger Configuration for VS Code on Windows
----------------------------------------------
+Flash Tool
+----------
 
-Download OpenOCD (tested with version 0.12.0-6):
+To write the firmware to the target device on Windows, download
+`STM32_Programmer_CLI.exe` from this package from ST:
+
+    https://www.st.com/en/development-tools/stm32cubeprog.html
+
+Or on Linux:
+
+    sudo apt install stlink-tools
+
+Debugger Configuration for VS Code
+----------------------------------
+
+On Linux install OpenOCD:
+
+    sudo apt install openocd
+
+On Windows download OpenOCD (tested with version 0.12.0-6):
 
     https://github.com/xpack-dev-tools/openocd-xpack/releases
 
@@ -47,6 +68,8 @@ Debugging in VS Code should now work.
 
 Manual Debugging
 ----------------
+
+(Path examples for Windows, adjust for Linux)
 
 Run OpenOCD with the target board connected:
 
@@ -67,7 +90,7 @@ In GDB:
 DMA2D
 -----
 
-Doom renders internally into I_VideoBuffer, a 320×200 8-bit (L8) framebuffer.
+Doom renders internally into `I_VideoBuffer`, a 320×200 8-bit (L8) framebuffer.
 DMA2D is used to convert this to a 32-bit ARGB8888 image for the display.
 
     ⚠️ Note: DMA2D does not support scaling. Scaling to 640×400 must be done in software.
