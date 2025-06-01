@@ -20,8 +20,10 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f7xx_hal.h"
-#include "stm32f769i_discovery.h"
 #include "stm32f7xx_it.h"
+#ifdef STM32F769xx
+#include "stm32f769i_discovery.h"
+#endif
 
 /** @addtogroup STM32F7xx_HAL_Examples
   * @{

@@ -63,7 +63,8 @@ APP_SUBDIRS += \
 	ST/Drivers/BSP/Components/otm8009a/
 
 APP_INCLUDE_PATH += \
-	-IST/Drivers/BSP/STM32F769I-Discovery
+	-IST/Drivers/BSP/STM32F769I-Discovery \
+	-IST/STM32F769I-Discovery
 
 S_STARTUP := startup_stm32f769xx
 S_SRC += ST/STM32F769I-Discovery/$(S_STARTUP).s
@@ -75,14 +76,16 @@ endif
 # =======================================================================
 
 ifeq ($(BOARD),STM32F7508_DK)
-LINKER_SCRIPT   := ST/STM32F7508-DK/STM32F750V8Tx_FLASH.ld
-ADDITIONAL_DIR  := ST/STM32F7508-DK
+LINKER_SCRIPT   := ST/STM32F7508-Discovery/STM32F750N8Hx_FLASH.ld
 APP_CPP_FLAGS   += -DSTM32F750xx -DUSE_HAL_DRIVER -DUSE_FULL_LL_DRIVER
 APP_SUBDIRS += \
-	ST/STM32F7508-Discovery
+	ST/STM32F7508-Discovery \
+	ST/Drivers/BSP/STM32F7508-Discovery \
+	ST/Drivers/BSP/Components/rk043fn48h
 
 APP_INCLUDE_PATH += \
-	-IST/Drivers/BSP/STM32F7508-Discovery
+	-IST/Drivers/BSP/STM32F7508-Discovery \
+	-IST/STM32F7508-Discovery
 
 S_STARTUP := startup_stm32f750xx
 S_SRC += ST/STM32F7508-Discovery/$(S_STARTUP).s

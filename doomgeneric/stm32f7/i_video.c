@@ -26,8 +26,12 @@
 #include <sys/types.h>
 #include <math.h>
 
+#ifdef STM32F769xx
 #include "stm32f769i_discovery_lcd.h"
 #define DMA2D_HW_ACCEL
+#else
+#include "stm32f7508_discovery_lcd.h"
+#endif
 
 //#define CMAP256
 
@@ -62,7 +66,9 @@ void HAL_DMA2D_MspInit(DMA2D_HandleTypeDef *hdma2d);
 void HAL_DMA2D_MspDeInit(DMA2D_HandleTypeDef *hdma2d);
 
 static uint32_t dma2d_clut[256]; // palette for STM's DMA2D hardware acceleration
+#ifdef STM32F769xx
 #define DMA2D_HW_ACCEL_SCALE_2X  // if enabled: scale up the framebuffer 2x
+#endif
 static uint8_t gamma_lut[256];
 
 #ifdef DMA2D_HW_ACCEL_SCALE_2X

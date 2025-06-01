@@ -5,7 +5,6 @@
    | |_| | (_| | (_) | (_) | | | | | |
     \__,_|\__,_|\___/ \___/|_| |_| |_|
 
-
    Doom for the STM32F7 microcontroller
    */
 
@@ -16,12 +15,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdarg.h>
 // Board specific includes
 #include "stm32f7xx.h"
-#include "stm32f769i_discovery.h"
-#include "stm32f769i_discovery_lcd.h"
-#include "stm32f769i_discovery_sdram.h"
+#include "stm32f7508_discovery.h"
+#include "stm32f7508_discovery_lcd.h"
+#include "stm32f7508_discovery_sdram.h"
 /* <mass storage> */
 #include "ff_gen_drv.h"
 #include "sd_diskio.h"
@@ -43,10 +43,6 @@
 // UART
 #define UART_TX_BUF_SIZE     256
 #define UART_RX_BUF_SIZE     2   // must be power of 2
-#define USART_TX_Pin         GPIO_PIN_9
-#define USART_TX_GPIO_Port   GPIOA
-#define USART_RX_Pin         GPIO_PIN_10
-#define USART_RX_GPIO_Port   GPIOA
 #define UART_KEY_HOLD_MS     100 // mark a key as released after xxx ms over uart
 
 /******************************************************************************
@@ -63,7 +59,6 @@ extern pixel_t* DG_ScreenBuffer; // buffer for doom to draw to
 
 // UART
 UART_HandleTypeDef  huart1;
-DMA_HandleTypeDef   hdma_usart1_tx;
 
 /******************************************************************************
  * LOCAL DATA DEFINITIONS
@@ -94,7 +89,6 @@ static void SystemClock_Config(void);
 // Framebuffer
 static void Framebuffer_Clear(void);
 // UART
-static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
 // Profiler with cycle counter
 static void enable_dwt_cycle_counter(void);
@@ -123,13 +117,11 @@ int main(void)
 
     // LEDs
     BSP_LED_Init(LED1);
-    BSP_LED_Init(LED2);
     BSP_LED_On(LED1);
 
     // UART
-    MX_DMA_Init();
     MX_USART1_UART_Init();
-    printf("STM32F769I Discovery Doom\n"); // early sign of life
+    printf("STM32F7508 Discovery Doom\n"); // early sign of life
     printf("Core frequency: %lu MHz\n", HAL_RCC_GetHCLKFreq() / 1000000);
 
     // SDRAM
@@ -145,12 +137,12 @@ int main(void)
     BSP_LCD_SetTransparency(0, 255);
     BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
     BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
-    BSP_LCD_SetBrightness(100); // set brightness to 100%
+    // BSP_LCD_SetBrightness(100); // set brightness to 100%
     Framebuffer_Clear();
 
     // Initial hello
     int line = 0;
-    BSP_LCD_DisplayStringAtLine(line++, "STM32F769I Doom by Jan Zwiener");
+    BSP_LCD_DisplayStringAtLine(line++, "STM32F7508 Doom by Jan Zwiener");
     BSP_LCD_DisplayStringAtLine(line++, "Loading .WAD file from SD card...");
     // Mount SD Card
     char sdpath[4]; // SD logical drive path
@@ -243,7 +235,7 @@ void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
             g_fbcur = 1 - g_fbcur;
         }
         g_fbready = 0;
-        BSP_LED_Toggle(LED2); /* some developer feedback */
+        BSP_LED_Toggle(LED1); /* some developer feedback */
     }
     HAL_LTDC_ProgramLineEvent(hltdc, 0); // setup next VSYNC callback
     g_vsync_count++;
@@ -403,116 +395,128 @@ static void CPU_CACHE_Enable(void)
 
 /* The SD card stuff should run with a 200 MHz MCU configuration according to
  * the readme.txt of ST */
+/**
+  * @brief  System Clock Configuration
+  *         The system Clock is configured as follow : 
+  *            System Clock source            = PLL (HSE)
+  *            SYSCLK(Hz)                     = 200000000
+  *            HCLK(Hz)                       = 200000000
+  *            AHB Prescaler                  = 1
+  *            APB1 Prescaler                 = 4
+  *            APB2 Prescaler                 = 2
+  *            HSE Frequency(Hz)              = 25000000
+  *            PLL_M                          = 25
+  *            PLL_N                          = 400
+  *            PLL_P                          = 2
+  *            PLL_Q                          = 8
+  *            VDD(V)                         = 3.3
+  *            Main regulator output voltage  = Scale1 mode
+  *            Flash Latency(WS)              = 6
+  * @param  None
+  * @retval None
+  */
 static void SystemClock_Config(void)
 {
-    HAL_StatusTypeDef ret = HAL_OK;
-    RCC_ClkInitTypeDef RCC_ClkInitStruct;
-    RCC_OscInitTypeDef RCC_OscInitStruct;
+  RCC_ClkInitTypeDef RCC_ClkInitStruct;
+  RCC_OscInitTypeDef RCC_OscInitStruct;
+  HAL_StatusTypeDef ret = HAL_OK;
 
-    /* Enable HSE Oscillator and activate PLL with HSE as source */
-    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-    RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-    RCC_OscInitStruct.PLL.PLLM = 25;
-    RCC_OscInitStruct.PLL.PLLN = 400;
-    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-    RCC_OscInitStruct.PLL.PLLQ = 8;
-    RCC_OscInitStruct.PLL.PLLR = 7;
+  /* Enable HSE Oscillator and activate PLL with HSE as source */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 25;
+  RCC_OscInitStruct.PLL.PLLN = 400;  
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = 8;
 
-    ret = HAL_RCC_OscConfig(&RCC_OscInitStruct);
-    if(ret != HAL_OK)
-    {
-        while(1) { ; }
-    }
+  ret = HAL_RCC_OscConfig(&RCC_OscInitStruct);
+  if(ret != HAL_OK)
+  {
+    while(1) { ; }
+  }
 
-    ret = HAL_PWREx_EnableOverDrive();
-    if(ret != HAL_OK)
-    {
-        while(1) { ; }
-    }
+  /* Activate the OverDrive to reach the 200 MHz Frequency */
+  ret = HAL_PWREx_EnableOverDrive();
+  if(ret != HAL_OK)
+  {
+    while(1) { ; }
+  }
+  
+  /* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2 clocks dividers */
+  RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;  
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-    /* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2 clocks dividers */
-    RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
-    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
-    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
-
-    ret = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_6);
-    if(ret != HAL_OK)
-    {
-        while(1) { ; }
-    }
+  ret = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_6);
+  if(ret != HAL_OK)
+  {
+    while(1) { ; }
+  }
 }
 
 static void MPU_Config(void)
 {
-    MPU_Region_InitTypeDef MPU_InitStruct;
+  MPU_Region_InitTypeDef MPU_InitStruct;
 
-    /* Disable the MPU */
-    HAL_MPU_Disable();
+  /* Disable the MPU */
+  HAL_MPU_Disable();
 
-    /* Configure the MPU as Strongly ordered for not defined regions */
-    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-    MPU_InitStruct.BaseAddress = 0x00;
-    MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
-    MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
-    MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-    MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-    MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
-    MPU_InitStruct.Number = MPU_REGION_NUMBER0;
-    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-    MPU_InitStruct.SubRegionDisable = 0x87;
-    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+  /* Configure the MPU as Strongly ordered for not defined regions */
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.BaseAddress = 0x00;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
+  MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.SubRegionDisable = 0x87;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
 
-    HAL_MPU_ConfigRegion(&MPU_InitStruct);
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
-    /* Configure the MPU attributes as WT for SDRAM */
-    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-    MPU_InitStruct.BaseAddress = 0xC0000000;
-    MPU_InitStruct.Size = MPU_REGION_SIZE_32MB;
-    MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-    MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-    MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
-    MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
-    MPU_InitStruct.Number = MPU_REGION_NUMBER1;
-    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-    MPU_InitStruct.SubRegionDisable = 0x00;
-    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+  /* Configure the MPU QSPI flash */
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.BaseAddress = 0x90000000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_16MB;
+  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER1;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.SubRegionDisable = 0x0;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
 
-    HAL_MPU_ConfigRegion(&MPU_InitStruct);
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
-    /* Configure the MPU attributes FMC control registers */
-    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-    MPU_InitStruct.BaseAddress = 0xA0000000;
-    MPU_InitStruct.Size = MPU_REGION_SIZE_8KB;
-    MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-    MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
-    MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-    MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
-    MPU_InitStruct.Number = MPU_REGION_NUMBER2;
-    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-    MPU_InitStruct.SubRegionDisable = 0x0;
-    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+  /* Configure the MPU attributes QSPI control registers */
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.BaseAddress = 0xA0000000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_8KB;
+  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER2;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.SubRegionDisable = 0x0;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+  
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
-    HAL_MPU_ConfigRegion(&MPU_InitStruct);
-
-    /* Enable the MPU */
-    HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
+  /* Enable the MPU */
+  HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 }
 
 static void MX_USART1_UART_Init(void)
 {
-    huart1.Instance = USART1;
-    huart1.Init.BaudRate = 115200;
-    huart1.Init.WordLength = UART_WORDLENGTH_8B;
-    huart1.Init.StopBits = UART_STOPBITS_1;
-    huart1.Init.Parity = UART_PARITY_NONE;
-    huart1.Init.Mode = UART_MODE_TX_RX;
-    huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-    huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-    HAL_UART_Init(&huart1);
+    BSP_COM_Init(COM1, &huart1);
 
     HAL_UART_Receive_IT(&huart1, (uint8_t *)&g_uart_rx_byte, 1);
 }
@@ -530,68 +534,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
         // Restart the UART receive interrupt
         HAL_UART_Receive_IT(huart, (uint8_t *)&g_uart_rx_byte, 1);
     }
-}
-
-void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
-{
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-    if(uartHandle->Instance == USART1)
-    {
-        /* USART1 clock enable */
-        __HAL_RCC_USART1_CLK_ENABLE();
-        __HAL_RCC_GPIOA_CLK_ENABLE();
-        __HAL_RCC_DMA2_CLK_ENABLE();  // USART1 uses DMA2
-
-        /**USART1 GPIO Configuration
-          PA9  ------> USART1_TX
-          PA10 ------> USART1_RX
-          */
-        GPIO_InitStruct.Pin = GPIO_PIN_9 | GPIO_PIN_10;
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-        GPIO_InitStruct.Pull = GPIO_NOPULL;
-        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-        GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
-        HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-        /* USART1 TX DMA Init */
-        hdma_usart1_tx.Instance = DMA2_Stream7;
-        hdma_usart1_tx.Init.Channel = DMA_CHANNEL_4;
-        hdma_usart1_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
-        hdma_usart1_tx.Init.PeriphInc = DMA_PINC_DISABLE;
-        hdma_usart1_tx.Init.MemInc = DMA_MINC_ENABLE;
-        hdma_usart1_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-        hdma_usart1_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-        hdma_usart1_tx.Init.Mode = DMA_NORMAL;
-        hdma_usart1_tx.Init.Priority = DMA_PRIORITY_LOW;
-        hdma_usart1_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-        HAL_DMA_Init(&hdma_usart1_tx);
-
-        __HAL_LINKDMA(uartHandle, hdmatx, hdma_usart1_tx);
-
-        /* USART1 interrupt Init */
-        HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(USART1_IRQn);
-    }
-}
-
-void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
-{
-    if(uartHandle->Instance == USART1)
-    {
-        __HAL_RCC_USART1_CLK_DISABLE();
-        HAL_GPIO_DeInit(GPIOA, GPIO_PIN_9 | GPIO_PIN_10);
-        HAL_DMA_DeInit(uartHandle->hdmatx);
-        HAL_NVIC_DisableIRQ(USART1_IRQn);
-    }
-}
-
-static void MX_DMA_Init(void)
-{
-    __HAL_RCC_DMA2_CLK_ENABLE();
-
-    /* DMA2_Stream7_IRQn interrupt config (for USART1_TX) */
-    HAL_NVIC_SetPriority(DMA2_Stream7_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);
 }
 
 /* syscalls.c will call this function for stdout and stderr,
