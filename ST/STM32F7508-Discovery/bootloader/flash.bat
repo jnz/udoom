@@ -16,7 +16,7 @@ STM32_Programmer_CLI.exe -c port=SWD -ob BOOT_ADD0=0x2000
 :: === Flash ===
 echo.
 echo === Flashing to STM32 via ST-LINK ===
-STM32_Programmer_CLI.exe -c port=SWD -d bootloader.hex -v -rst
+STM32_Programmer_CLI.exe -c port=SWD mode=UR -d "bootloader.hex" -rst
 
 IF ERRORLEVEL 1 (
     echo Flash failed.
