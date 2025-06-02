@@ -29,6 +29,10 @@ OBJDIR          := build
 CMSIS_DIR       := ST/Drivers/CMSIS
 HAL_DIR         := ST/Drivers/STM32F7xx_HAL_Driver
 
+# Optional WAD embed for STM32F7508_DK
+WAD_INPUT := wad/DOOM1.WAD
+WAD_OBJ := $(OBJDIR)/doom1wad.o
+
 # App source directories
 APP_SUBDIRS += \
 	./src \
@@ -77,7 +81,7 @@ endif
 
 ifeq ($(BOARD),STM32F7508_DK)
 LINKER_SCRIPT   := ST/STM32F7508-Discovery/STM32F750N8Hx_FLASH.ld
-APP_CPP_FLAGS   += -DSTM32F750xx -DUSE_HAL_DRIVER -DUSE_FULL_LL_DRIVER
+APP_CPP_FLAGS   += -DSTM32F750xx -DUSE_HAL_DRIVER -DUSE_FULL_LL_DRIVER -DWAD_EMBEDDED
 APP_SUBDIRS += \
 	ST/STM32F7508-Discovery \
 	ST/Drivers/BSP/STM32F7508-Discovery \
@@ -90,12 +94,15 @@ APP_INCLUDE_PATH += \
 S_STARTUP := startup_stm32f750xx
 S_SRC += ST/STM32F7508-Discovery/$(S_STARTUP).s
 
+WAD_ENABLED := 1
+
 endif
 
 # =======================================================================
 ifndef S_STARTUP
 $(error Unknown or unsupported BOARD: $(BOARD))
 endif
+
 # =======================================================================
 
 TARGET_COMPILER ?= gcc
@@ -127,7 +134,7 @@ APP_CPP_FLAGS   += -D_DEFAULT_SOURCE  # only to enable strdup()
 # --specs=nosys.specs: semihosting disabled
 
 # GCC compiler warnings
-GCC_STACK_WARNING_BYTES := 4096
+GCC_STACK_WARNING_BYTES := 1024
 WARNING_CHECKS  := -Wall
 WARNING_CHECKS  += -Wframe-larger-than=$(GCC_STACK_WARNING_BYTES)
 WARNING_CHECKS  += -Wstack-usage=$(GCC_STACK_WARNING_BYTES)
@@ -144,7 +151,6 @@ WARNING_CHECKS  += -Wvla
 WARNING_CHECKS  += -Wdate-time
 
 default: all
-
 
 LIBRARIES := -lm
 
@@ -171,22 +177,38 @@ CP              := cp
 CC              := ${TOOLCHAIN_ROOT}${COMPILER}
 LINK            := ${TOOLCHAIN_ROOT}${COMPILER}
 
-APP_SRCS         = $(foreach dir, $(APP_SUBDIRS), $(wildcard $(dir)/*.c))
+APP_SRCS         := $(foreach dir, $(APP_SUBDIRS), $(wildcard $(dir)/*.c))
 C_SRCS           = $(APP_SRCS)
 VPATH            = $(APP_SUBDIRS)
-OBJ_NAMES        = $(notdir $(C_SRCS))
-OBJS             = $(addprefix $(OBJDIR)/,$(OBJ_NAMES:%.c=%.o))
-OBJS             += $(OBJDIR)/$(S_STARTUP).o
+OBJ_NAMES        := $(notdir $(C_SRCS))
+ALL_C_OBJS       := $(addprefix $(OBJDIR)/,$(OBJ_NAMES:%.c=%.o))
+OBJS             += $(ALL_C_OBJS) $(OBJDIR)/$(S_STARTUP).o
+
+# Add WAD object only for STM32F7508_DK board
+ifeq ($(WAD_ENABLED),1)
+OBJS += $(WAD_OBJ)
+endif
+
 C_DEPS           = $(OBJS:%.o=%.d)
 C_INCLUDES       = $(APP_INCLUDE_PATH)
 
 COMPILER_CMDLINE = -std=c99 $(COMPILER_FLAGS) $(C_INCLUDES)
 
-$(OBJDIR)/$(S_STARTUP).o: $(S_SRC)
+# WAD embedding rule (only executed when WAD_ENABLED=1)
+$(WAD_OBJ): $(WAD_INPUT) | $(OBJDIR)
+	@echo "Embedding DOOM1.WAD -> $@"
+	$(Q)$(OC) -I binary -O elf32-littlearm -B arm $< $@ \
+		--rename-section .data=.doomwad,alloc,load,readonly,data
+
+# Ensure build directory exists
+$(OBJDIR):
+	$(Q)mkdir -p $(OBJDIR)
+
+$(OBJDIR)/$(S_STARTUP).o: $(S_SRC) | $(OBJDIR)
 	@echo 'ASM: $<'
 	$(Q)$(CC) $(ASM_FLAGS) $(C_INCLUDES) -o "$@" "$<"
 
-$(OBJDIR)/%.o: %.c
+$(OBJDIR)/%.o: %.c | $(OBJDIR)
 	@echo 'CC: $<'
 	$(Q)$(CC) $(COMPILER_CMDLINE) -o "$@" "$<"
 
@@ -214,10 +236,7 @@ ${APPNAME}.elf: $(OBJS) ${LINKER_SCRIPT}
 clean:
 	$(RM) $(APPNAME).bin $(APPNAME).hex
 	$(RM) $(EXECUTABLES) ${APPNAME}.map
-	$(RM) $(OBJDIR)/*.d
-	$(RM) $(OBJDIR)/*.o
-	$(RM) $(OBJDIR)/*.dbo
-	$(RM) $(OBJDIR)/*.lst
+	$(RM) -r $(OBJDIR)
 
 post-build:
 	@echo "Creating ${APPNAME}.bin"

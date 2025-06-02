@@ -144,19 +144,6 @@ int app_main(void)
     // Initial hello
     int line = 0;
     BSP_LCD_DisplayStringAtLine(line++, "STM32F7508 Doom by Jan Zwiener");
-    BSP_LCD_DisplayStringAtLine(line++, "Loading .WAD file from SD card...");
-    // Mount SD Card
-    char sdpath[4]; // SD logical drive path
-    FATFS sdfatfs;  // File system object for SD logical drive
-    if (FATFS_LinkDriver(&SD_Driver, sdpath) != 0)
-    {
-        I_Error("Failed to load SD card driver");
-    }
-    FRESULT fr = f_mount(&sdfatfs, (TCHAR const *)sdpath, 1);
-    if (fr != FR_OK)
-    {
-        I_Error("Error: Failed to mount SD card. (%d)", fr);
-    }
     // from now on fopen() and other stdio functions will work with the SD card
     BSP_LED_Off(LED1); // MCU init complete
 
