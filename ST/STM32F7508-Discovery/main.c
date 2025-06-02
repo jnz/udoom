@@ -108,7 +108,7 @@ void I_DoubleBufferEnable(int enable);
  * FUNCTION PROTOTYPES
  ******************************************************************************/
 
-int main(void)
+int app_main(void)
 {
     MPU_Config();
     CPU_CACHE_Enable();

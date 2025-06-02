@@ -8,7 +8,9 @@ typedef void (*pFunction)(void);
 
 static void MPU_Config (void);
 static void SystemClock_Config(void);
-static void JumpToQSPI(uint32_t address);
+
+#define JUMP_TO_ADDRESS    0x90000000
+pFunction JumpToApplication;
 
 int main(void)
 {
@@ -27,18 +29,16 @@ int main(void)
     SCB_DisableICache();
     SCB_DisableDCache();
 
-    BSP_LED_On(LED1); // Ready to jump to QSPI_BASE
-    SysTick->CTRL = 0;
-    JumpToQSPI(0x90000000); // QSPI_BASE
-    while (1);
-}
+    BSP_LED_On(LED1); // Indicate that we are ready to jump
+    SysTick->CTRL = 0; // Disable SysTick
 
-static void JumpToQSPI(uint32_t address)
-{
-    SCB->VTOR = address; // be careful: SystemInit() of the application will
+    SCB->VTOR = JUMP_TO_ADDRESS; // be careful: SystemInit() of the application will
                          // probably set the VTOR again
-    __set_MSP(*(volatile uint32_t*)address);
-    ((pFunction)(*(volatile uint32_t*)(address + 4)))();
+    JumpToApplication = (pFunction) (*(__IO uint32_t*) (JUMP_TO_ADDRESS + 4));
+    __set_MSP(*(__IO uint32_t*) JUMP_TO_ADDRESS);
+    JumpToApplication();
+
+    while (1);
 }
 
 /**
@@ -182,4 +182,7 @@ static void MPU_Config (void)
     /* Enable the MPU */
     HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 }
-
+void SysTick_Handler(void)
+{
+    HAL_IncTick();
+}
