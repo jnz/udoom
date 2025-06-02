@@ -59,6 +59,7 @@
 
 // Double Buffering
 extern LTDC_HandleTypeDef hltdc_discovery; // display handle
+static LTDC_HandleTypeDef* phltdc = &hltdc_discovery;
 extern pixel_t* DG_ScreenBuffer; // buffer for doom to draw to
 
 // UART
@@ -157,13 +158,11 @@ int main(void)
     FATFS sdfatfs;  // File system object for SD logical drive
     if (FATFS_LinkDriver(&SD_Driver, sdpath) != 0)
     {
-        BSP_LCD_DisplayStringAtLine(line++, "Failed to load SD card driver");
         I_Error("Failed to load SD card driver");
     }
     FRESULT fr = f_mount(&sdfatfs, (TCHAR const *)sdpath, 1);
     if (fr != FR_OK)
     {
-        BSP_LCD_DisplayStringAtLine(line++, "Error: Failed to mount SD card.");
         I_Error("Error: Failed to mount SD card. (%d)", fr);
     }
     // from now on fopen() and other stdio functions will work with the SD card
@@ -175,7 +174,7 @@ int main(void)
     Framebuffer_Clear();
 
     I_DoubleBufferEnable(1);
-    HAL_LTDC_ProgramLineEvent(&hltdc_discovery, 0);
+    HAL_LTDC_ProgramLineEvent(phltdc, 0);
     int fpscounter = 0;
     uint32_t nextfpsupdate = HAL_GetTick() + 1000;
     uint32_t cyclecount = 0; // cycles used for Doom (reset every second)
@@ -277,19 +276,21 @@ void I_Error(char *error, ...)
 
     // Try to emit the error to the display. Go to framebuffer 0.
     // then draw the error string to the top left corner
-    __HAL_LTDC_DISABLE_IT(&hltdc_discovery, LTDC_IT_LI);
+    BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+    BSP_LCD_SetBackColor(LCD_COLOR_RED);
+    __HAL_LTDC_DISABLE_IT(phltdc, LTDC_IT_LI);
     g_fbready = 0;
-    LTDC_LAYER(&hltdc_discovery, 0)->CFBAR = ((uint32_t)g_fblist[0]);
+    LTDC_LAYER(phltdc, 0)->CFBAR = ((uint32_t)g_fblist[0]);
     __DSB();
-    __HAL_LTDC_RELOAD_CONFIG(&hltdc_discovery);
+    __HAL_LTDC_RELOAD_CONFIG(phltdc);
     BSP_LCD_DisplayStringAtLine(0, (uint8_t*)msgbuf);
 
     while(1) // stay forever
     {
         // pump out the error message forever
         // in case UART is connected after the error occurs
-        fprintf(stderr, "%s\n", msgbuf);
-        for (int i = 0; i < 10; ++i)
+        fprintf(stderr, "I_Error: %s\n", msgbuf);
+        for (int i = 0; i < 100; ++i)
         {
             BSP_LED_Toggle(LED1); // indicate error
             HAL_Delay_WFI(100);

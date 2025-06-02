@@ -93,7 +93,7 @@ static void ExtendLumpInfo(int newnumlumps)
 
     if (newlumpinfo == NULL)
     {
-	I_Error ("Couldn't realloc lumpinfo");
+	I_Error ("Couldn't realloc lumps: %u lumps (%uKB)", newnumlumps, newnumlumps*sizeof(lumpinfo_t)/1024);
     }
 
     // Copy over lumpinfo_t structures from the old array. If any of

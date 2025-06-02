@@ -100,7 +100,7 @@ endif
 
 TARGET_COMPILER ?= gcc
 # default compiler optimization level:
-export OPTIMIZE_LEVEL ?= g
+export OPTIMIZE_LEVEL ?= 2
 APP_CPP_FLAGS   += -g3 -fno-builtin
 
 APP_CPP_FLAGS   += -fno-strict-aliasing -fno-math-errno

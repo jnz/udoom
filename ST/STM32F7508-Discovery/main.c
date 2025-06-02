@@ -36,7 +36,7 @@
 // Framebuffer
 #define BYTES_PER_PIXEL  4
 #define SDRAM_BASE       LCD_FB_START_ADDRESS
-#define SDRAM_SIZE       (8 * 1024 * 1024)  // MB
+#define SDRAM_SIZE       (6 * 1024 * 1024)  // MB
 #define SDRAM_END        (SDRAM_BASE + SDRAM_SIZE)
 #define FB_SIZE_BYTES    (BSP_LCD_GetXSize() * BSP_LCD_GetYSize() * BYTES_PER_PIXEL)
 
@@ -150,13 +150,11 @@ int app_main(void)
     FATFS sdfatfs;  // File system object for SD logical drive
     if (FATFS_LinkDriver(&SD_Driver, sdpath) != 0)
     {
-        BSP_LCD_DisplayStringAtLine(line++, "Failed to load SD card driver");
         I_Error("Failed to load SD card driver");
     }
     FRESULT fr = f_mount(&sdfatfs, (TCHAR const *)sdpath, 1);
     if (fr != FR_OK)
     {
-        BSP_LCD_DisplayStringAtLine(line++, "Error: Failed to mount SD card.");
         I_Error("Error: Failed to mount SD card. (%d)", fr);
     }
     // from now on fopen() and other stdio functions will work with the SD card
@@ -270,6 +268,8 @@ void I_Error(char *error, ...)
 
     // Try to emit the error to the display. Go to framebuffer 0.
     // then draw the error string to the top left corner
+    BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+    BSP_LCD_SetBackColor(LCD_COLOR_RED);
     __HAL_LTDC_DISABLE_IT(phltdc, LTDC_IT_LI);
     g_fbready = 0;
     LTDC_LAYER(phltdc, 0)->CFBAR = ((uint32_t)g_fblist[0]);
@@ -281,8 +281,8 @@ void I_Error(char *error, ...)
     {
         // pump out the error message forever
         // in case UART is connected after the error occurs
-        fprintf(stderr, "%s\n", msgbuf);
-        for (int i = 0; i < 10; ++i)
+        fprintf(stderr, "I_Error: %s\n", msgbuf);
+        for (int i = 0; i < 100; ++i)
         {
             BSP_LED_Toggle(LED1); // indicate error
             HAL_Delay_WFI(100);
@@ -398,7 +398,7 @@ static void CPU_CACHE_Enable(void)
  * the readme.txt of ST */
 /**
   * @brief  System Clock Configuration
-  *         The system Clock is configured as follow : 
+  *         The system Clock is configured as follow :
   *            System Clock source            = PLL (HSE)
   *            SYSCLK(Hz)                     = 200000000
   *            HCLK(Hz)                       = 200000000
@@ -504,13 +504,50 @@ static void MPU_Config(void)
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
+  // Region 2: FMC Control Registers
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.BaseAddress = 0xA0000000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_8KB;
+  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;  // Wichtig: NOT cacheable!
+  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER2;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.SubRegionDisable = 0x0;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  // Region 3: SDRAM Data (8MB)
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.BaseAddress = 0xC0000000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_8MB;
+  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER3;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.SubRegionDisable = 0x00;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
   /* Enable the MPU */
   HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 }
 
 static void MX_USART1_UART_Init(void)
 {
+    huart1.Init.BaudRate = 115200;
+    huart1.Init.WordLength = UART_WORDLENGTH_8B;
+    huart1.Init.StopBits = UART_STOPBITS_1;
+    huart1.Init.Parity = UART_PARITY_NONE;
+    huart1.Init.Mode = UART_MODE_TX_RX;
+    huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    huart1.Init.OverSampling = UART_OVERSAMPLING_16;
     BSP_COM_Init(COM1, &huart1);
+    HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(USART1_IRQn);
 
     HAL_UART_Receive_IT(&huart1, (uint8_t *)&g_uart_rx_byte, 1);
 }

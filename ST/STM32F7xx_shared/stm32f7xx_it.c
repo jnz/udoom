@@ -71,12 +71,13 @@ void NMI_Handler(void)
   */
 void HardFault_Handler(void)
 {
-  /* Go to infinite loop when Hard Fault exception occurs */
-  while (1)
-  {
-      // Stay a while – stay forever!
-      __WFI();
-  }
+    __asm("BKPT #0");
+    /* Go to infinite loop when Hard Fault exception occurs */
+    while (1)
+    {
+        // Stay a while – stay forever!
+        __WFI();
+    }
 }
 
 /**
@@ -86,11 +87,11 @@ void HardFault_Handler(void)
   */
 void MemManage_Handler(void)
 {
-  /* Go to infinite loop when Memory Manage exception occurs */
-  while (1)
-  {
-      __WFI(); // at least save some power
-  }
+    /* Go to infinite loop when Memory Manage exception occurs */
+    while (1)
+    {
+        __WFI(); // at least save some power
+    }
 }
 
 /**
@@ -191,6 +192,11 @@ void BSP_SDMMC2_DMA_Rx_IRQHandler(void)
     HAL_DMA_IRQHandler(uSdHandle.hdmarx);
 }
 
+void BSP_SDMMC_DMA_Rx_IRQHandler(void)
+{
+    HAL_DMA_IRQHandler(uSdHandle.hdmarx);
+}
+
 /**
  * @brief Handles SDMMC2 DMA Tx transfer interrupt request.
  * @retval None
@@ -200,11 +206,21 @@ void BSP_SDMMC2_DMA_Tx_IRQHandler(void)
     HAL_DMA_IRQHandler(uSdHandle.hdmatx);
 }
 
+void BSP_SDMMC_DMA_Tx_IRQHandler(void)
+{
+    HAL_DMA_IRQHandler(uSdHandle.hdmatx);
+}
+
 /**
  * @brief Handles SD1 card interrupt request.
  * @retval None
  */
 void BSP_SDMMC2_IRQHandler(void)
+{
+    HAL_SD_IRQHandler(&uSdHandle);
+}
+
+void BSP_SDMMC_IRQHandler(void)
 {
     HAL_SD_IRQHandler(&uSdHandle);
 }
