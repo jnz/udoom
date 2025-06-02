@@ -117,6 +117,12 @@ Debug in GDB with
     si (assembler instruction step)
     finish (to end of function)
 
+With ST-LINK GDB server:
+
+    target remote localhost:XXXX # default port is 6123
+    monitor reset
+    monitor halt
+
 DMA2D
 -----
 

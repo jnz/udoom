@@ -15,8 +15,8 @@ pFunction JumpToApplication;
 int main(void)
 {
     MPU_Config();
-    SCB_EnableICache();
-    SCB_EnableDCache();
+    // SCB_EnableICache();
+    // SCB_EnableDCache();
     HAL_Init();
     SystemClock_Config();
 
@@ -26,8 +26,8 @@ int main(void)
     if (BSP_QSPI_Init() != QSPI_OK) { while (1); }
     if (BSP_QSPI_EnableMemoryMappedMode() != QSPI_OK) { while (1); }
 
-    SCB_DisableICache();
-    SCB_DisableDCache();
+    // SCB_DisableICache();
+    // SCB_DisableDCache();
 
     BSP_LED_On(LED1); // Indicate that we are ready to jump
     SysTick->CTRL = 0; // Disable SysTick
@@ -128,7 +128,6 @@ static void MPU_Config (void)
     MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
 
     HAL_MPU_ConfigRegion(&MPU_InitStruct);
-#if (CODE_AREA == USE_QSPI) || (BINARY_AREA == USE_SPI_NOR)
     /* Configure the MPU QSPI flash */
     MPU_InitStruct.Enable = MPU_REGION_ENABLE;
     MPU_InitStruct.BaseAddress = 0x90000000;
@@ -143,27 +142,7 @@ static void MPU_Config (void)
     MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
 
     HAL_MPU_ConfigRegion(&MPU_InitStruct);
-#endif
 
-#if (DATA_AREA == USE_EXTERNAL_SDRAM) || (CODE_AREA == USE_EXTERNAL_SDRAM)
-    /* Configure the MPU attributes for SDRAM */
-    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-    MPU_InitStruct.BaseAddress = 0xC0000000;
-    MPU_InitStruct.Size = MPU_REGION_SIZE_8MB;
-    MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-    MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
-    MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
-    MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
-    MPU_InitStruct.Number = MPU_REGION_NUMBER3;
-    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
-    MPU_InitStruct.SubRegionDisable = 0x00;
-#if (DATA_AREA == USE_EXTERNAL_SDRAM)
-    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
-#else
-    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
-#endif
-    HAL_MPU_ConfigRegion(&MPU_InitStruct);
-#endif
     /* Configure the MPU attributes FMC/QSPI control registers */
     MPU_InitStruct.Enable = MPU_REGION_ENABLE;
     MPU_InitStruct.BaseAddress = 0xA0000000;
