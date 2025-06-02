@@ -43,10 +43,6 @@
 // UART
 #define UART_TX_BUF_SIZE     256
 #define UART_RX_BUF_SIZE     2   // must be power of 2
-#define USART_TX_Pin         GPIO_PIN_9
-#define USART_TX_GPIO_Port   GPIOA
-#define USART_RX_Pin         GPIO_PIN_10
-#define USART_RX_GPIO_Port   GPIOA
 #define UART_KEY_HOLD_MS     100 // mark a key as released after xxx ms over uart
 
 /******************************************************************************
