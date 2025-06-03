@@ -145,7 +145,6 @@ int app_main(void)
     // Initial hello
     int line = 0;
     BSP_LCD_DisplayStringAtLine(line++, "STM32F7508 Doom by Jan Zwiener");
-    // from now on fopen() and other stdio functions will work with the SD card
     BSP_LED_Off(LED1); // MCU init complete
 
     // Prepare main loop
