@@ -1,12 +1,5 @@
 @echo off
 
-set "Firmware=bootloader.elf"
-
-:: Convert ELF to HEX
-echo.
-echo === Generating HEX file ===
-arm-none-eabi-objcopy -O ihex %Firmware% bootloader.hex
-
 :: === Set Option Bytes ===
 echo.
 echo === Ensuring BOOT_ADD0 is set to internal flash (0x08000000) ===
