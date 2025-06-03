@@ -36,6 +36,18 @@ Flashing the Firmware for the STM32F769I-Discovery Board:
 
     make flash
 
+To program the STM32F7508:
+
+    make clean
+    make -j4 BOARD=STM32F7508_DK
+    ./flash_qspi.bat
+
+Then program the bootloader into the internal flash:
+
+    cd ST/STM32F7508-Discovery/bootloader
+    ./flash.bat
+
+
 Flash Tool
 ----------
 
@@ -299,15 +311,4 @@ The `flash.bat` script will also setup the `BOOT_ADD0` address for the board:
 
 So `BOOT_ADD0` is set to 0x2000 (which means 0x08000000), which is the internal
 flash memory.
-
-To program the STM32F7508:
-
-    make clean
-    make -j4 BOARD=STM32F7508_DK
-    ./flash_qspi.bat
-
-Then program the bootloader into the internal flash:
-
-    cd ST/STM32F7508-Discovery/bootloader
-    ./flash.bat
 
