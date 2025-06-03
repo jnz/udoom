@@ -179,7 +179,10 @@ void DMA2D_Init(void)
     HAL_DMA2D_ConfigLayer(&hdma2d, 1);
 #ifdef DMA2D_HW_ACCEL_SCALE_2X
     // To scale up by 2x a temp. buffer is required.
-    VideoBuffer2X = Z_Malloc (4 * SCREENWIDTH * SCREENHEIGHT, PU_STATIC, NULL);
+    if (!VideoBuffer2X)
+    {
+        VideoBuffer2X = Z_Malloc (4 * SCREENWIDTH * SCREENHEIGHT, PU_STATIC, NULL);
+    }
 #endif
 }
 
