@@ -171,7 +171,8 @@ int app_main(void)
         if (HAL_GetTick() > nextfpsupdate)
         {
             // ratio: CPU cycles spent on Doom vs total CPU cycles in 1 second
-            const float cpuload = (float)cyclecount / HAL_RCC_GetHCLKFreq();
+            float cpuload = (float)cyclecount / HAL_RCC_GetHCLKFreq();
+            if (cpuload > 1.0f) { cpuload = 1.0f; }
             printf("FPS %2i CPU%3u%% VSYNC%3u Hz\n",
                    fpscounter, (int)(cpuload * 100), g_vsync_count);
             cyclecount = 0;
