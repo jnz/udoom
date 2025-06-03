@@ -123,7 +123,7 @@ int app_main(void)
 
     // UART
     MX_USART1_UART_Init();
-    printf("STM32F7508 Discovery Doom\n"); // early sign of life
+    printf("STM32F7508 Doom\n"); // early sign of life
     printf("Core frequency: %lu MHz\n", HAL_RCC_GetHCLKFreq() / 1000000);
 
     // Display
