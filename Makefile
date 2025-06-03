@@ -107,7 +107,7 @@ endif
 
 TARGET_COMPILER ?= gcc
 # default compiler optimization level:
-export OPTIMIZE_LEVEL ?= 2
+export OPTIMIZE_LEVEL ?= g
 APP_CPP_FLAGS   += -g3 -fno-builtin
 
 APP_CPP_FLAGS   += -fno-strict-aliasing -fno-math-errno
@@ -197,8 +197,8 @@ COMPILER_CMDLINE = -std=c99 $(COMPILER_FLAGS) $(C_INCLUDES)
 # WAD embedding rule (only executed when WAD_ENABLED=1)
 $(WAD_OBJ): $(WAD_INPUT) | $(OBJDIR)
 	@echo "Embedding DOOM1.WAD -> $@"
-	$(Q)$(OC) -I binary -O elf32-littlearm -B arm $< $@ \
-		--rename-section .data=.doomwad,alloc,load,readonly,data
+	$(Q)${TOOLCHAIN_ROOT}$(CROSS_COMPILE)ld -r -b binary -o $@ $<
+	$(Q)$(OC) --rename-section .data=.doomwad $@ $@
 
 # Ensure build directory exists
 $(OBJDIR):
@@ -236,7 +236,10 @@ ${APPNAME}.elf: $(OBJS) ${LINKER_SCRIPT}
 clean:
 	$(RM) $(APPNAME).bin $(APPNAME).hex
 	$(RM) $(EXECUTABLES) ${APPNAME}.map
-	$(RM) -r $(OBJDIR)
+	$(RM) $(OBJDIR)/*.d
+	$(RM) $(OBJDIR)/*.o
+	$(RM) $(OBJDIR)/*.dbo
+	$(RM) $(OBJDIR)/*.lst
 
 post-build:
 	@echo "Creating ${APPNAME}.bin"

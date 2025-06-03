@@ -34,14 +34,10 @@
  ******************************************************************************/
 
 // Framebuffer
-#define BYTES_PER_PIXEL  4
-#define SDRAM_BASE       LCD_FB_START_ADDRESS
-#define SDRAM_SIZE       (6 * 1024 * 1024)  // MB
-#define SDRAM_END        (SDRAM_BASE + SDRAM_SIZE)
-#define FB_SIZE_BYTES    (BSP_LCD_GetXSize() * BSP_LCD_GetYSize() * BYTES_PER_PIXEL)
+#define LCD_WIDTH_PIXEL      RK043FN48H_WIDTH
+#define LCD_HEIGHT_PIXEL     RK043FN48H_HEIGHT
 
 // UART
-#define UART_TX_BUF_SIZE     256
 #define UART_RX_BUF_SIZE     2   // must be power of 2
 #define UART_KEY_HOLD_MS     100 // mark a key as released after xxx ms over uart
 
@@ -54,6 +50,8 @@
  ******************************************************************************/
 
 // Double Buffering
+__attribute__((section(".framebuffer1"))) uint32_t framebuffer1[LCD_WIDTH_PIXEL * LCD_HEIGHT_PIXEL];
+__attribute__((section(".framebuffer2"))) uint32_t framebuffer2[LCD_WIDTH_PIXEL * LCD_HEIGHT_PIXEL];
 extern LTDC_HandleTypeDef hLtdcHandler;
 static LTDC_HandleTypeDef* phltdc = &hLtdcHandler;
 extern pixel_t* DG_ScreenBuffer; // buffer for doom to draw to
@@ -120,17 +118,17 @@ int app_main(void)
     BSP_LED_Init(LED1);
     BSP_LED_On(LED1);
 
+    // SDRAM
+    BSP_SDRAM_Init();
+
     // UART
     MX_USART1_UART_Init();
     printf("STM32F7508 Discovery Doom\n"); // early sign of life
     printf("Core frequency: %lu MHz\n", HAL_RCC_GetHCLKFreq() / 1000000);
 
-    // SDRAM
-    BSP_SDRAM_Init();
-
     // Display
-    g_fblist[0] = LCD_FB_START_ADDRESS;
-    g_fblist[1] = g_fblist[0] + FB_SIZE_BYTES;
+    g_fblist[0] = (uint32_t)framebuffer1;
+    g_fblist[1] = (uint32_t)framebuffer2;
     BSP_LCD_Init();
     BSP_LCD_LayerDefaultInit(0, g_fblist[0]);
     BSP_LCD_SelectLayer(0);
@@ -191,8 +189,8 @@ int app_main(void)
 
 static void Framebuffer_Clear(void)
 {
-    memset((void *)g_fblist[0], 0, FB_SIZE_BYTES); // clear first framebuffer
-    memset((void *)g_fblist[1], 0, FB_SIZE_BYTES); // clear second framebuffer
+    memset((void *)g_fblist[0], 0x00, sizeof(framebuffer1));
+    memset((void *)g_fblist[1], 0x00, sizeof(framebuffer2));
 }
 
 void DG_Init() // called by Doom during init
@@ -228,13 +226,15 @@ void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
 }
 
 /** @brief Give the address and size of the zone memory.  */
+extern uint8_t _zone_start;
+extern uint8_t _zone_end;
 uint8_t *I_ZoneBase (int *size)
 {
-    // Improvement: handle this via linker script
-    uint32_t zonemem = g_fblist[1] + FB_SIZE_BYTES;
-    printf("zonemem address: %p\n", (void*)zonemem);
-    *size = SDRAM_END - zonemem;
-    return (uint8_t*) zonemem;
+    uintptr_t addr = (uintptr_t)&_zone_start;
+    uintptr_t aligned = (addr + 63) & ~((uintptr_t)63);  // Align again, just to be paranoid
+
+    *size = (int)((uintptr_t)&_zone_end - aligned);
+    return (uint8_t *)aligned;
 }
 
 void I_Error(char *error, ...)

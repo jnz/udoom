@@ -34,14 +34,10 @@
  ******************************************************************************/
 
 // Framebuffer
-#define BYTES_PER_PIXEL  4
-#define SDRAM_BASE       LCD_FB_START_ADDRESS
-#define SDRAM_SIZE       (8 * 1024 * 1024)  // MB
-#define SDRAM_END        (SDRAM_BASE + SDRAM_SIZE)
-#define FB_SIZE_BYTES    (BSP_LCD_GetXSize() * BSP_LCD_GetYSize() * BYTES_PER_PIXEL)
+#define LCD_WIDTH_PIXEL      OTM8009A_800X480_WIDTH
+#define LCD_HEIGHT_PIXEL     OTM8009A_800X480_HEIGHT
 
 // UART
-#define UART_TX_BUF_SIZE     256
 #define UART_RX_BUF_SIZE     2   // must be power of 2
 #define UART_KEY_HOLD_MS     100 // mark a key as released after xxx ms over uart
 
@@ -54,9 +50,13 @@
  ******************************************************************************/
 
 // Double Buffering
-extern LTDC_HandleTypeDef hltdc_discovery; // display handle
+// Discovery Board has 2 framebuffers in SDRAM for the display in a high
+// resolution with 32bit color depth.
+__attribute__((section(".framebuffer1"))) uint32_t framebuffer1[LCD_WIDTH_PIXEL * LCD_HEIGHT_PIXEL];
+__attribute__((section(".framebuffer2"))) uint32_t framebuffer2[LCD_WIDTH_PIXEL * LCD_HEIGHT_PIXEL];
+extern LTDC_HandleTypeDef hltdc_discovery;
 static LTDC_HandleTypeDef* phltdc = &hltdc_discovery;
-extern pixel_t* DG_ScreenBuffer; // buffer for doom to draw to
+extern pixel_t* DG_ScreenBuffer; // 320x200 buffer for doom (8bpp)
 
 // UART
 UART_HandleTypeDef  huart1;
@@ -67,18 +67,18 @@ DMA_HandleTypeDef   hdma_usart1_tx;
  ******************************************************************************/
 
 // Double Buffering
-static uint32_t g_fblist[2];
-static uint32_t g_vsync_count;
-static bool g_double_buffer_enabled = false;
+static uint32_t g_fblist[2]; // addresses of the two framebuffers
+static uint32_t g_vsync_count; // count vsync interrupts (reset every second)
+static bool g_double_buffer_enabled = true;
 
 // Modified from interrupt handler and main code path:
 volatile static int g_fbcur = 1; // index into g_fblist, start in invisible buffer
 volatile static int g_fbready = 0; // safe to swap buffers?
 
 // UART
-static uint8_t g_uart_rx_byte;
-static uint8_t g_uart_rx_buf[UART_RX_BUF_SIZE];
-static int g_uart_rx_buf_size; // number of bytes in g_uart_rx_buf
+static uint8_t g_uart_rx_byte; // only modified in interrupt handler
+static volatile uint8_t g_uart_rx_buf[UART_RX_BUF_SIZE];
+static volatile int g_uart_rx_buf_size; // number of bytes in g_uart_rx_buf
 
 /******************************************************************************
  * LOCAL FUNCTION PROTOTYPES
@@ -107,7 +107,7 @@ void I_Error(char *error, ...);
 void I_DoubleBufferEnable(int enable);
 
 /******************************************************************************
- * FUNCTION PROTOTYPES
+ * FUNCTION BODIES
  ******************************************************************************/
 
 int main(void)
@@ -123,18 +123,23 @@ int main(void)
     BSP_LED_Init(LED2);
     BSP_LED_On(LED1);
 
+    // SDRAM
+    BSP_SDRAM_Init();
+
     // UART
     MX_DMA_Init();
     MX_USART1_UART_Init();
     printf("STM32F769I Discovery Doom\n"); // early sign of life
     printf("Core frequency: %lu MHz\n", HAL_RCC_GetHCLKFreq() / 1000000);
 
-    // SDRAM
-    BSP_SDRAM_Init();
+    volatile int memsize = 16;
+    volatile int* test = malloc(memsize);
+    test[1] = 1234;
+    printf("Test: %i", test[1]);
 
     // Display
-    g_fblist[0] = LCD_FB_START_ADDRESS;
-    g_fblist[1] = g_fblist[0] + FB_SIZE_BYTES;
+    g_fblist[0] = (uint32_t)framebuffer1;
+    g_fblist[1] = (uint32_t)framebuffer2;
     BSP_LCD_Init();
     BSP_LCD_LayerDefaultInit(0, g_fblist[0]);
     BSP_LCD_SelectLayer(0);
@@ -208,8 +213,8 @@ int main(void)
 
 static void Framebuffer_Clear(void)
 {
-    memset((void *)g_fblist[0], 0, FB_SIZE_BYTES); // clear first framebuffer
-    memset((void *)g_fblist[1], 0, FB_SIZE_BYTES); // clear second framebuffer
+    memset((void *)g_fblist[0], 0x00, sizeof(framebuffer1));
+    memset((void *)g_fblist[1], 0x00, sizeof(framebuffer2));
 }
 
 void DG_Init() // called by Doom during init
@@ -244,14 +249,13 @@ void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
     g_vsync_count++;
 }
 
+extern uint8_t _zone_start; /* linker puts this into SDRAM */
+extern uint8_t _zone_end;
 /** @brief Give the address and size of the zone memory.  */
 uint8_t *I_ZoneBase (int *size)
 {
-    // Improvement: handle this via linker script
-    uint32_t zonemem = g_fblist[1] + FB_SIZE_BYTES;
-    printf("zonemem address: %p\n", (void*)zonemem);
-    *size = SDRAM_END - zonemem;
-    return (uint8_t*) zonemem;
+    *size = (int)(&_zone_end - &_zone_start);
+    return &_zone_start;
 }
 
 void I_Error(char *error, ...)

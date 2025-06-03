@@ -29,16 +29,17 @@
 ENTRY(Reset_Handler)
 
 /* Highest address of the user mode stack */
-_estack = 0x20080000;    /* end of RAM */
+_estack = 0x20080000;    /* end of 512KB RAM */
 /* Generate a link error if heap and stack don't fit into RAM */
-_Min_Heap_Size = 0x600;      /* required amount of heap  */
+/* _Min_Heap_Size = 0; */     /* Unused - heap is in SDRAM, see below  */
 _Min_Stack_Size = 0x1000; /* required amount of stack */
 
 /* Specify the memory areas */
 MEMORY
 {
-RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 512K
-FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 2048K
+RAM (xrw)    : ORIGIN = 0x20000000, LENGTH = 512K
+FLASH (rx)   : ORIGIN = 0x8000000,  LENGTH = 2048K
+SDRAM  (xrw) : ORIGIN = 0xC0000000, LENGTH = 16M
 }
 
 /* Define output sections */
@@ -110,7 +111,7 @@ SECTIONS
   _sidata = LOADADDR(.data);
 
   /* Initialized data sections goes into RAM, load LMA copy after code */
-  .data : 
+  .data :
   {
     . = ALIGN(4);
     _sdata = .;        /* create a global symbol at data start */
@@ -121,7 +122,42 @@ SECTIONS
     _edata = .;        /* define a global symbol at data end */
   } >RAM AT> FLASH
 
-  
+  /* Framebuffers in SDRAM at fixed addresses */
+  .framebuffers (NOLOAD) :
+  {
+    KEEP(*(.framebuffer1))
+    KEEP(*(.framebuffer2))
+  } > SDRAM AT> SDRAM
+
+  /* Zone allocator memory after framebuffers */
+  .zonemem (NOLOAD) :
+  {
+    . = ALIGN(64);
+    _zone_start = .;
+    *(.zonemem)
+    . = . + 8M;
+    . = ALIGN(64);
+    _zone_end = .;
+  } > SDRAM AT> SDRAM
+
+  /* SDRAM heap for malloc() and newlib */
+  .heap_sdram (NOLOAD) :
+  {
+    . = ALIGN(64);
+    _heap_sdram_start = .;
+    . = . + 4M;
+    . = ALIGN(64);
+    _heap_sdram_end = .;
+  } > SDRAM AT > SDRAM
+
+  /* Optional general-purpose large uninitialized arrays */
+  .sdram (NOLOAD) :
+  {
+      . = ALIGN(8);
+      *(.sdram)
+      . = ALIGN(8);
+  } > SDRAM AT> SDRAM
+
   /* Uninitialized data section */
   . = ALIGN(4);
   .bss :
@@ -137,19 +173,6 @@ SECTIONS
     _ebss = .;         /* define a global symbol at bss end */
     __bss_end__ = _ebss;
   } >RAM
-
-  /* User_heap_stack section, used to check that there is enough RAM left */
-  ._user_heap_stack :
-  {
-    . = ALIGN(8);
-    PROVIDE ( end = . );
-    PROVIDE ( _end = . );
-    . = . + _Min_Heap_Size;
-    . = . + _Min_Stack_Size;
-    . = ALIGN(8);
-  } >RAM
-
-  
 
   /* Remove information from the standard libraries */
   /DISCARD/ :

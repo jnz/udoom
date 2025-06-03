@@ -31,7 +31,7 @@ ENTRY(Reset_Handler)
 /* Highest address of the user mode stack */
 _estack = 0x20050000;    /* end of RAM */
 /* Generate a link error if heap and stack don't fit into RAM */
-_Min_Heap_Size = 0x600;      /* required amount of heap  */
+/* _Min_Heap_Size = 0; */     /* Unused - heap is in SDRAM, see below  */
 _Min_Stack_Size = 0x1000; /* required amount of stack */
 
 /* Specify the memory areas */
@@ -39,6 +39,7 @@ MEMORY
 {
 FLASH (rx)      : ORIGIN = 0x90000000, LENGTH = 16384K
 RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 320K
+SDRAM  (xrw) : ORIGIN = 0xC0000000, LENGTH = 8M
 }
 
 /* Define output sections */
@@ -51,6 +52,42 @@ SECTIONS
     KEEP(*(.isr_vector)) /* Startup code */
     . = ALIGN(4);
   } >FLASH
+
+  /* Framebuffers in SDRAM at fixed addresses */
+  .framebuffers (NOLOAD) :
+  {
+      KEEP(*(.framebuffer1))
+      KEEP(*(.framebuffer2))
+    } > SDRAM AT> SDRAM
+
+    /* Zone allocator memory after framebuffers */
+    .zonemem (NOLOAD) :
+    {
+        . = ALIGN(64);
+        _zone_start = .;
+        *(.zonemem)
+        . = . + 5M;
+        . = ALIGN(64);
+        _zone_end = .;
+    } > SDRAM AT> SDRAM
+
+    /* SDRAM heap for malloc() and newlib */
+    .heap_sdram (NOLOAD) :
+    {
+        . = ALIGN(64);
+        _heap_sdram_start = .;
+        . = . + 1M;
+        . = ALIGN(64);
+        _heap_sdram_end = .;
+    } > SDRAM AT > SDRAM
+
+    /* Optional general-purpose large uninitialized arrays */
+    .sdram (NOLOAD) :
+    {
+        . = ALIGN(8);
+        *(.sdram)
+        . = ALIGN(8);
+    } > SDRAM AT> SDRAM
 
   /* The program code and other data goes into FLASH */
   .text :
@@ -143,6 +180,7 @@ SECTIONS
   } >RAM
 
   /* User_heap_stack section, used to check that there is enough RAM left */
+  /*
   ._user_heap_stack :
   {
     . = ALIGN(8);
@@ -152,6 +190,7 @@ SECTIONS
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
   } >RAM
+  */
 
 
 
