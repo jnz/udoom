@@ -132,11 +132,6 @@ int main(void)
     printf("STM32F769I Discovery Doom\n"); // early sign of life
     printf("Core frequency: %lu MHz\n", HAL_RCC_GetHCLKFreq() / 1000000);
 
-    volatile int memsize = 16;
-    volatile int* test = malloc(memsize);
-    test[1] = 1234;
-    printf("Test: %i", test[1]);
-
     // Display
     g_fblist[0] = (uint32_t)framebuffer1;
     g_fblist[1] = (uint32_t)framebuffer2;
