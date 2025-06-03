@@ -24,7 +24,6 @@
 #include <fcntl.h>
 #include <stdarg.h>
 #include <sys/types.h>
-#include <math.h>
 
 #ifdef STM32F769xx
 #include "stm32f769i_discovery_lcd.h"
@@ -70,8 +69,28 @@ static uint32_t dma2d_clut[256]; // palette for STM's DMA2D hardware acceleratio
 #ifdef STM32F769xx
 #define DMA2D_HW_ACCEL_SCALE_2X  // if enabled: scale up the framebuffer 2x
 #endif
-static uint8_t gamma_lut[256];
-
+/*
+    Run Python script python/precompute_gamma.py
+    Table for 0.5 gamma correction
+ */
+const uint8_t gamma_lut[256] = {
+      0,  16,  23,  28,  32,  36,  39,  42,  45,  48,  50,  53,  55,  58,  60,  62,
+     64,  66,  68,  70,  71,  73,  75,  77,  78,  80,  81,  83,  84,  86,  87,  89,
+     90,  92,  93,  94,  96,  97,  98, 100, 101, 102, 103, 105, 106, 107, 108, 109,
+    111, 112, 113, 114, 115, 116, 117, 118, 119, 121, 122, 123, 124, 125, 126, 127,
+    128, 129, 130, 131, 132, 133, 134, 135, 135, 136, 137, 138, 139, 140, 141, 142,
+    143, 144, 145, 145, 146, 147, 148, 149, 150, 151, 151, 152, 153, 154, 155, 156,
+    156, 157, 158, 159, 160, 160, 161, 162, 163, 164, 164, 165, 166, 167, 167, 168,
+    169, 170, 170, 171, 172, 173, 173, 174, 175, 176, 176, 177, 178, 179, 179, 180,
+    181, 181, 182, 183, 183, 184, 185, 186, 186, 187, 188, 188, 189, 190, 190, 191,
+    192, 192, 193, 194, 194, 195, 196, 196, 197, 198, 198, 199, 199, 200, 201, 201,
+    202, 203, 203, 204, 204, 205, 206, 206, 207, 208, 208, 209, 209, 210, 211, 211,
+    212, 212, 213, 214, 214, 215, 215, 216, 217, 217, 218, 218, 219, 220, 220, 221,
+    221, 222, 222, 223, 224, 224, 225, 225, 226, 226, 227, 228, 228, 229, 229, 230,
+    230, 231, 231, 232, 233, 233, 234, 234, 235, 235, 236, 236, 237, 237, 238, 238,
+    239, 240, 240, 241, 241, 242, 242, 243, 243, 244, 244, 245, 245, 246, 246, 247,
+    247, 248, 248, 249, 249, 250, 250, 251, 251, 252, 252, 253, 253, 254, 254, 255,
+};
 #ifdef DMA2D_HW_ACCEL_SCALE_2X
 static byte* VideoBuffer2X;
 #endif
@@ -230,22 +249,11 @@ void cmap_to_fb(uint8_t * out, uint8_t * in, int in_pixels)
 }
 #endif
 
-#ifdef DMA2D_HW_ACCEL
-static void init_gamma_lut(float gamma)
-{
-    for (int i = 0; i < 256; ++i)
-    {
-        gamma_lut[i] = (uint8_t)(powf(i / 255.0f, gamma) * 255.0f + 0.5f);
-    }
-}
-#endif
-
 void I_InitGraphics (void)
 {
     int i;
 
 #ifdef DMA2D_HW_ACCEL
-    init_gamma_lut(0.8f); // < 1.0f: brighter, > 1.0f darker
     DMA2D_Init();
 #endif
 

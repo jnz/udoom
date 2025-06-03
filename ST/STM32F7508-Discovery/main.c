@@ -138,6 +138,9 @@ int app_main(void)
     BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
     // BSP_LCD_SetBrightness(100); // set brightness to 100%
     Framebuffer_Clear();
+    // Enable VSYNC interrupts
+    HAL_NVIC_SetPriority(LTDC_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(LTDC_IRQn);
 
     // Initial hello
     int line = 0;
@@ -230,11 +233,8 @@ extern uint8_t _zone_start;
 extern uint8_t _zone_end;
 uint8_t *I_ZoneBase (int *size)
 {
-    uintptr_t addr = (uintptr_t)&_zone_start;
-    uintptr_t aligned = (addr + 63) & ~((uintptr_t)63);  // Align again, just to be paranoid
-
-    *size = (int)((uintptr_t)&_zone_end - aligned);
-    return (uint8_t *)aligned;
+    *size = (int)(&_zone_end - &_zone_start);
+    return &_zone_start;
 }
 
 void I_Error(char *error, ...)
