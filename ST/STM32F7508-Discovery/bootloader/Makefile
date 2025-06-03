@@ -142,7 +142,7 @@ ${APPNAME}.elf: $(OBJS) ${LINKER_SCRIPT}
 	$(Q)$(MAKE) --no-print-directory post-build
 
 clean:
-	$(RM) $(APPNAME).bin $(APPNAME).hex
+	$(RM) $(APPNAME).bin
 	$(RM) $(EXECUTABLES) ${APPNAME}.map
 	$(RM) $(OBJDIR)/*.d
 	$(RM) $(OBJDIR)/*.o
