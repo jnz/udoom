@@ -305,12 +305,11 @@ void I_InitGraphics (void)
         printf("I_InitGraphics: Auto-scaling factor: %d\n", fb_scaling);
     }
 
-
-    /* Allocate screen to draw to */
-#ifndef STM32F769xx
-    I_VideoBuffer = (byte*)Z_Malloc (SCREENWIDTH * SCREENHEIGHT, PU_STATIC, NULL);  // For DOOM to draw on
-#endif
-
+    /* Fallback: use Z_Malloc to get a buffer to draw to */
+    if (!I_VideoBuffer)
+    {
+        I_VideoBuffer = (byte*)Z_Malloc (SCREENWIDTH * SCREENHEIGHT, PU_STATIC, NULL);  // For DOOM to draw on
+    }
     screenvisible = true;
 
     extern void I_InitInput(void);

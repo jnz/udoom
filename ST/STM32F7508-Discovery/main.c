@@ -66,7 +66,7 @@ UART_HandleTypeDef  huart1;
 // Double Buffering
 static uint32_t g_fblist[2];
 static uint32_t g_vsync_count;
-static bool g_double_buffer_enabled = false;
+volatile static bool g_double_buffer_enabled = false; // initially set to false
 
 // Modified from interrupt handler and main code path:
 volatile static int g_fbcur = 1; // index into g_fblist, start in invisible buffer
@@ -172,7 +172,7 @@ int app_main(void)
         {
             // ratio: CPU cycles spent on Doom vs total CPU cycles in 1 second
             const float cpuload = (float)cyclecount / HAL_RCC_GetHCLKFreq();
-            printf("\rFPS %2i CPU%3u%% VSYNC%3u Hz",
+            printf("FPS %2i CPU%3u%% VSYNC%3u Hz\n",
                    fpscounter, (int)(cpuload * 100), g_vsync_count);
             cyclecount = 0;
             fpscounter = 0;

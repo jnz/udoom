@@ -69,7 +69,7 @@ DMA_HandleTypeDef   hdma_usart1_tx;
 // Double Buffering
 static uint32_t g_fblist[2]; // addresses of the two framebuffers
 static uint32_t g_vsync_count; // count vsync interrupts (reset every second)
-static bool g_double_buffer_enabled = true;
+volatile static bool g_double_buffer_enabled = false; // initially set to false
 
 // Modified from interrupt handler and main code path:
 volatile static int g_fbcur = 1; // index into g_fblist, start in invisible buffer
