@@ -36,6 +36,11 @@ Flashing the Firmware for the STM32F769I-Discovery Board:
 
     make flash
 
+The STM32F769I-Discovery version requires a FAT32 SD card with a .wad file
+(e.g. doom1.wad) in its root directory. The STM32F7508 version
+has a huge flash memory and the `doom1.wad` (Shareware version) is
+embedded in the firmware, so no SD card is required.
+
 To program the STM32F7508:
 
     make clean
