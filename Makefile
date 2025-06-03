@@ -36,8 +36,6 @@ WAD_OBJ := $(OBJDIR)/doom1wad.o
 # App source directories
 APP_SUBDIRS += \
 	./src \
-	./src/storage \
-	./src/storage/FatFs \
 	./doomgeneric \
 	./doomgeneric/stm32f7 \
 	$(HAL_DIR)/Src \
@@ -61,6 +59,8 @@ ifeq ($(BOARD),STM32F769I_DISCO)
 LINKER_SCRIPT   := ST/STM32F769I-Discovery/STM32F769NIHx_FLASH.ld
 APP_CPP_FLAGS   += -DSTM32F769xx -DUSE_HAL_DRIVER -DUSE_FULL_LL_DRIVER
 APP_SUBDIRS += \
+	./src/storage \
+	./src/storage/FatFs \
 	ST/STM32F769I-Discovery \
 	ST/Drivers/BSP/STM32F769I-Discovery \
 	ST/Drivers/BSP/Components/nt35510/ \
@@ -102,7 +102,6 @@ endif
 ifndef S_STARTUP
 $(error Unknown or unsupported BOARD: $(BOARD))
 endif
-
 # =======================================================================
 
 TARGET_COMPILER ?= gcc
