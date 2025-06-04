@@ -44,7 +44,6 @@ APP_SUBDIRS += \
 # Include directories
 APP_INCLUDE_PATH += \
   -I./inc \
-  -I./src/storage/FatFs \
   -I./ST/STM32F7xx_shared \
   -I./doomgeneric \
   -I$(CMSIS_DIR)/Include \
@@ -60,8 +59,8 @@ ifeq ($(BOARD),STM32F769I_DISCO)
 LINKER_SCRIPT   := ST/STM32F769I-Discovery/STM32F769NIHx_FLASH.ld
 APP_CPP_FLAGS   += -DSTM32F769xx -DUSE_HAL_DRIVER -DUSE_FULL_LL_DRIVER
 APP_SUBDIRS += \
-	./src/storage \
-	./src/storage/FatFs \
+	./ST/STM32F7xx_shared/storage \
+	./ST/STM32F7xx_shared/storage/FatFs \
 	ST/STM32F769I-Discovery \
 	ST/Drivers/BSP/STM32F769I-Discovery \
 	ST/Drivers/BSP/Components/nt35510/ \
@@ -69,6 +68,7 @@ APP_SUBDIRS += \
 
 APP_INCLUDE_PATH += \
 	-IST/Drivers/BSP/STM32F769I-Discovery \
+	-IST/STM32F7xx_shared/storage/FatFs \
 	-IST/STM32F769I-Discovery
 
 S_STARTUP := startup_stm32f769xx
