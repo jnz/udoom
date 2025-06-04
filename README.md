@@ -11,6 +11,11 @@
 
 Microcontroller Doom — runs classic DOOM on the STM32F769I-Discovery board.
 
+![µDOOM Logo](doc/logo.png)
+
+*“µDOOM is an unofficial port of Doom for STM32 microcontrollers for academic
+purposes. This project is not affiliated with or endorsed by id Software.
+DOOM is a registered trademark of id Software.”*
 
 Toolchain Setup
 ---------------
