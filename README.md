@@ -1,13 +1,13 @@
 µDoom
 =====
 
-             | |
-    _   _  __| | ___   ___  _ __ ___
-   | | | |/ _` |/ _ \ / _ \| '_ ` _ \
-   | |_| | (_| | (_) | (_) | | | | | |
-    \__,_|\__,_|\___/ \___/|_| |_| |_|
+              | |
+     _   _  __| | ___   ___  _ __ ___
+    | | | |/ _` |/ _ \ / _ \| '_ ` _ \
+    | |_| | (_| | (_) | (_) | | | | | |
+     \__,_|\__,_|\___/ \___/|_| |_| |_|
 
-    Doom for the STM32F7 microcontroller
+     Doom for the STM32F7 microcontroller
 
 Microcontroller Doom — runs classic DOOM on the STM32F769I-Discovery and STM32F7508-DK board.
 
