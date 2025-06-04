@@ -28,6 +28,7 @@
 /* </mass storage> */
 #include "doomgeneric.h"
 #include "doomkeys.h"
+#include "memusage.h"
 
 /******************************************************************************
  * DEFINES
@@ -112,6 +113,7 @@ int app_main(void)
     CPU_CACHE_Enable();
     HAL_Init();
     SystemClock_Config();
+    stack_fill_with_magic();
     enable_dwt_cycle_counter();
 
     // LEDs
@@ -172,8 +174,11 @@ int app_main(void)
             // ratio: CPU cycles spent on Doom vs total CPU cycles in 1 second
             float cpuload = (float)cyclecount / HAL_RCC_GetHCLKFreq();
             if (cpuload > 1.0f) { cpuload = 1.0f; }
-            printf("FPS %2i CPU%3u%% VSYNC%3u Hz\n",
-                   fpscounter, (int)(cpuload * 100), g_vsync_count);
+            printf("FPS%3i CPU%3u%% VID%3uHz Stack %u/%u Heap %u/%uKB Zone %u/%uM\n",
+                   fpscounter, (int)(cpuload * 100), g_vsync_count,
+                   stack_usage(), stack_total(),
+                   heap_usage()/1024, heap_total()/1024,
+                   Z_ZoneUsage()/(1024*1024), Z_ZoneSize()/(1024*1024));
             cyclecount = 0;
             fpscounter = 0;
             g_vsync_count = 0;

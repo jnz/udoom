@@ -120,7 +120,6 @@ void Z_Init (void)
     block->size = mainzone->size - sizeof(memzone_t);
 }
 
-
 //
 // Z_Free
 //
@@ -480,6 +479,27 @@ int Z_FreeMemory (void)
     }
 
     return free;
+}
+
+size_t Z_ZoneUsage(void)
+{
+    memblock_t*	block;
+    size_t	used_size = 0;
+    // size_t	walked_size = 0;
+
+    if (mainzone && mainzone->blocklist.next)
+    {
+        for (block = mainzone->blocklist.next ; block != &mainzone->blocklist ; block = block->next)
+        {
+            // walked_size += block->size;
+            if (block->tag != PU_FREE)
+                used_size += block->size;
+        }
+    }
+
+    // if (walked) { *walked = walked_size; }
+    return used_size;
+
 }
 
 unsigned int Z_ZoneSize(void)

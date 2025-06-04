@@ -45,6 +45,7 @@ APP_SUBDIRS += \
 APP_INCLUDE_PATH += \
   -I./inc \
   -I./src/storage/FatFs \
+  -I./ST/STM32F7xx_shared \
   -I./doomgeneric \
   -I$(CMSIS_DIR)/Include \
   -I$(CMSIS_DIR)/Device/ST/STM32F7xx/Include \

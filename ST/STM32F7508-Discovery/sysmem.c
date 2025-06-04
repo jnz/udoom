@@ -57,3 +57,13 @@ void* _sbrk_r(struct _reent* r, ptrdiff_t incr)
     return _sbrk(incr);
 }
 
+size_t heap_usage(void)
+{
+    return (size_t)((uint8_t*)_sbrk(0) - (uint8_t*)&_heap_sdram_start);
+}
+
+size_t heap_total(void)
+{
+    return (size_t)(&_heap_sdram_end - &_heap_sdram_start);
+}
+
