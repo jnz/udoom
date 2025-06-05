@@ -8,3 +8,25 @@ firmware.list
 firmware.map
 config.mk
 tags
+# VS-specific Zeug
+.vs
+*.user
+*.VC.db
+*.opendb
+x64/
+Debug/
+Release/
+*.obj
+*.pdb
+*.log
+*.tlog
+*.idb
+*.ipch
+*.iobj
+*.ipdb
+*.tmp
+*.log
+*.bak
+*.cache
+# Doom-specific
+.savegame/

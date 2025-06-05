@@ -79,10 +79,10 @@ static LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 		ExitProcess(0);
 		break;
 	case WM_KEYDOWN:
-		addKeyToQueue(1, wParam);
+		addKeyToQueue(1, (unsigned char)wParam);
 		break;
 	case WM_KEYUP:
-		addKeyToQueue(0, wParam);
+		addKeyToQueue(0, (unsigned char)wParam);
 		break;
 	default:
 		return DefWindowProcA(hwnd, msg, wParam, lParam);
@@ -92,6 +92,11 @@ static LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
 void DG_Init()
 {
+	if (!DG_ScreenBuffer)
+	{
+		DG_ScreenBuffer = malloc(DOOMGENERIC_RESX * DOOMGENERIC_RESY * 4);
+	}
+
 	// window creation
 	const char windowClassName[] = "DoomWindowClass";
 	const char windowTitle[] = "Doom";
@@ -196,6 +201,11 @@ void DG_SetWindowTitle(const char * title)
 	}
 }
 
+void I_DoubleBufferEnable(int enable)
+{
+	(void)enable;
+}
+
 int main(int argc, char **argv)
 {
     doomgeneric_Create(argc, argv);
@@ -205,6 +215,5 @@ int main(int argc, char **argv)
         doomgeneric_Tick();
     }
     
-
     return 0;
 }
