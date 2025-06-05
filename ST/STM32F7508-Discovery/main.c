@@ -22,10 +22,6 @@
 #include "stm32f7508_discovery.h"
 #include "stm32f7508_discovery_lcd.h"
 #include "stm32f7508_discovery_sdram.h"
-/* <mass storage> */
-#include "ff_gen_drv.h"
-#include "sd_diskio.h"
-/* </mass storage> */
 #include "doomgeneric.h"
 #include "doomkeys.h"
 #include "memusage.h"
