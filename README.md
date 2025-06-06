@@ -12,6 +12,21 @@ DOOM is a registered trademark of id Software.”*
 
 ![gif](doc/DOOM2STM32F769I.gif)
 
+Performance:
+
+The STM32F769 runs at a solid setpoint 35 FPS which is nicely VSYNC'd to the display of the
+discovery board.
+The CPU usage is at about 25 percent when compiled with `-O2` and ignoring the time spend waiting for
+the DMA2D transfers to be complete (the CPU is saving power with `__WFI` during that period).
+The default build is using `-Og` for smooth debugging.
+Worst-case stack usage is about 2KB of 8KB total. Heap usage is a chunk of 84KB.
+Zone memory is about 9MB for Doom 2 if a total zone memory of 12M is supplied.
+Doom can deal with less memory though.
+
+The STM32F769I-DISCO board uses an LCD display with a 45° tearing effect
+limitation during the transition between the front- and backbuffer image though, which
+looks ugly.
+
 Toolchain Setup
 ---------------
 
