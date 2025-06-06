@@ -260,7 +260,10 @@ Doom uses its own memory allocator instead of malloc(). It needs about 6 MB of R
 
 This is allocated from SDRAM, after the two framebuffers:
 
-    #define ZONE_BASE_ADDR (0xC0000000 + 800 * 480 * 4 * 2)
+    #define ZONE_BASE_ADDR (0xC0000000 + SOME_OFFSET_INTO_SDRAM)
+
+(Note: in the code this address is not hardcoded but calculated by the linker
+script, but basically you need to define some address in the SDRAM.)
 
 Doom calls this at startup:
 
@@ -270,13 +273,19 @@ Doom calls this at startup:
         return (uint8_t*)ZONE_BASE_ADDR;
     }
 
-Make sure this block is large enough and does not overlap with any other DMA buffers.
+Make sure this block is large enough and does not overlap with any other DMA
+buffers. Also the SDRAM must be initialized and mapped to `0xC0000000` with:
+
+    BSP_SDRAM_Init();
+
+Otherwise the SDRAM is not accessible.
+Note that Doom 2 needs significantly more zone memory than Doom 1.
 
 Reading .WAD Files from SD Card
 -------------------------------
 
 A bunch of boilerplate code is needed to read data from SD card using FatFS.
-The code is located in `src/storage/*`.
+The code is located in `ST/STM32F7xx_shared/storage/*`.
 
 To mount the SD card, first initialize the SD driver and link it to a path:
 
@@ -284,57 +293,35 @@ To mount the SD card, first initialize the SD driver and link it to a path:
     FATFS sdfatfs;
     if (FATFS_LinkDriver(&SD_Driver, sdpath) != 0)
     {
-        BSP_LCD_DisplayStringAtLine(line++, "Failed to load SD card driver");
         /* error handling */
     }
     FRESULT fr = f_mount(&sdfatfs, (TCHAR const *)sdpath, 1);
     if (fr != FR_OK)
     {
-        BSP_LCD_DisplayStringAtLine(line++, "Error: Failed to mount SD card.");
         /* error handling */
     }
 
-As Doom is has `fopen(...)` and `fread(...)` calls all over the place, the
+As `fopen(...)` and `fread(...)` calls all over the place, the
 simplest way is to link the stdio library functions to FatFs in the
 `syscalls.c` file by overwriting `_open`, `_lseek`, `_read`, `_write`, and `_close`.
-E.g. for  `_open`, this will link fopen to FatFs's `f_open` function:
+E.g. for  `_open`, this will link fopen to FatFs's `f_open` function.
+This is a minimal example to glue a FatFs FIL struct to an fopen call:
 
+    FIL fexample; // Example FatFs file struct
     int _open(const char *path, int flags, ...)
     {
-        BYTE fatfs_mode = 0;
+        BYTE fatfs_mode = FA_READ;
 
-        if ((flags & O_RDWR) == O_RDWR)
-            fatfs_mode = FA_READ | FA_WRITE;
-        else if (flags & O_WRONLY)
-            fatfs_mode = FA_WRITE;
-        else
-            fatfs_mode = FA_READ;
-
-    #if _FS_READONLY == 0
-        if (flags & O_CREAT)
-            fatfs_mode |= FA_OPEN_ALWAYS;
-    #endif
-
-        for (int fn = 0; fn < MAX_FILES; fn++)
+        FRESULT fr = f_open(&fexample, path, fatfs_mode);
+        if (fr == FR_OK)
         {
-            if (g_files[fn].obj.fs == NULL)
-            {
-                FRESULT fr = f_open(&g_files[fn], path, fatfs_mode);
-                if (fr == FR_OK)
-                {
-                    return fn + RESERVED_FILE_HANDLES;
-                }
-                errno = EIO;
-                return -1;
-            }
+            return TBD_YOUR_FILE_HANDLE; // invent an integer file handle here
         }
-        errno = EMFILE;
+        errno = EIO;
         return -1;
     }
 
-with a max. pool of FatFs file handles (`FIL`):
-
-    static FIL g_files[MAX_FILES];
+So `ST/STM32F769I-Discovery/syscalls.c` for a complete implementation.
 
 Bootloader for STM32F7508
 -------------------------
@@ -343,19 +330,19 @@ The STM32F7508 has 16MB of QSPI flash memory at 0x90000000.
 Now the cumbersome part is that this requires a custom bootloader
 to initialize the QSPI hardware and then jump to the application code.
 
-The custom bootloader can be placed in the 64KB internal flash memory at
+The custom bootloader can be placed in the (small) 64KB internal flash memory at
 0x08000000. There is a bootloader in the directory `ST/STM32F7508-Discovery/bootloader`.
 This bootloader initializes the QSPI flash and then jumps to the application.
-Use `make` to build the bootloader. Then run `flash.bat` in the directory
+Use `make` to build the bootloader. Then run `flash.bat`/`flash.sh` in the directory
 `ST/STM32F7508-Discovery/bootloader` to load the bootloader. If you don't want
 to compile the bootloader, there is a precompiled binary in the same directory
 `bootloader_precompiled.hex`.
-The `flash.bat` script will also setup the `BOOT_ADD0` address for the board:
+The `flash.bat`/`flash.sh` script will also setup the `BOOT_ADD0` address for the board:
 
     echo === Ensuring BOOT_ADD0 is set to internal flash (0x08000000) ===
     echo Right shift target address by 14 bits (i.e. divide by 16384)
     STM32_Programmer_CLI.exe -c port=SWD -ob BOOT_ADD0=0x2000
 
-So `BOOT_ADD0` is set to 0x2000 (which means 0x08000000), which is the internal
-flash memory.
+So `BOOT_ADD0` is set to 0x2000 (which multiplied by 0x4000 is the target
+address of 0x08000000), which points to the internal flash memory.
 
