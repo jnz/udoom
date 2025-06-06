@@ -18,6 +18,8 @@ Microcontroller Doom — runs classic DOOM on the STM32F769I-Discovery and STM32
 purposes. This project is not affiliated with or endorsed by id Software.
 DOOM is a registered trademark of id Software.”*
 
+![gif](doc/DOOM2STM32F769I.gif)
+
 Toolchain Setup
 ---------------
 
@@ -36,27 +38,56 @@ On Windows e.g.:
 
     TOOLCHAIN_ROOT=C:/Tools/arm-gnu-toolchain-13.3.rel1-mingw-w64-i686-arm-none-eabi/bin/
 
-Then run make.
+Build for the STM32F769I-Discovery Board
+----------------------------------------
 
-Flashing the Firmware for the STM32F769I-Discovery Board:
+Run make:
+
+    make -j10
+
+Flashing the resulting `firmware.hex` on the STM32F769I-Discovery Board via
+ST-Link:
 
     make flash
 
 The STM32F769I-Discovery version requires a FAT32 SD card with a .wad file
-(e.g. doom1.wad) in its root directory. The STM32F7508 version
-has a huge flash memory and the `doom1.wad` (Shareware version) is
-embedded in the firmware, so no SD card is required.
+(e.g.`doom1.wad` from the wad directory) in the SD card root directory.
 
-To program the STM32F7508:
+Build for the STM32F7508 Discovery Board
+----------------------------------------
+
+
+To build the STM32F7508 firmware
+
+In case you've compiled the STM32F769 version first run:
 
     make clean
-    make -j4 BOARD=STM32F7508_DK
-    ./flash_qspi.bat
 
-Then program the bootloader into the internal flash:
+Then compile for the STM32F7508:
+
+    make -j10 BOARD=STM32F7508_DK
+
+The STM32F7508 version has a huge flash memory and the `doom1.wad` (Shareware
+version) is embedded in the firmware in the build process, so no SD card is
+required. But the firmware has to be uploaded on the Quad-SPI flash memory.
+This requires the STM32 Cube Programmer from ST with an external loader.
+If STM32 Cube Programmer is installed on Windows, just run:
+
+    flash_qspi.bat
+
+or on Linux with a path to the ST programming tool:
+
+    STM32CLT_PATH="$HOME/ST/STM32CubeProgrammer" ./flash_qspi.sh
+
+To load the firmware from QSPI a bootloader is required, flash via:
+
+    cd ST\STM32F7508-Discovery\bootloader
+    flash.bat
+
+or on Linux:
 
     cd ST/STM32F7508-Discovery/bootloader
-    ./flash.bat
+    ./flash.sh
 
 
 Flash Tool
@@ -67,7 +98,12 @@ To write the firmware to the target device on Windows, download
 
     https://www.st.com/en/development-tools/stm32cubeprog.html
 
-Or on Linux:
+Or on Linux the STM32 Cube Programmer is also required if you want to flash to
+the STM32F7508 board:
+
+    https://www.st.com/en/development-tools/stm32cubeprog.html
+
+For the STM32F769 (without using QSPI flash) the open source `stlink-tools` are ok as well:
 
     sudo apt install stlink-tools
 
