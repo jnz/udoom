@@ -1,14 +1,6 @@
 µDoom
 =====
 
-              | |
-     _   _  __| | ___   ___  _ __ ___
-    | | | |/ _` |/ _ \ / _ \| '_ ` _ \
-    | |_| | (_| | (_) | (_) | | | | | |
-     \__,_|\__,_|\___/ \___/|_| |_| |_|
-
-     Doom for the STM32F7 microcontroller
-
 Microcontroller Doom — runs classic DOOM on the STM32F769I-Discovery and STM32F7508-DK board.
 
 ![µDOOM Logo](doc/logo.png)
@@ -345,4 +337,18 @@ The `flash.bat`/`flash.sh` script will also setup the `BOOT_ADD0` address for th
 
 So `BOOT_ADD0` is set to 0x2000 (which multiplied by 0x4000 is the target
 address of 0x08000000), which points to the internal flash memory.
+
+Development
+-----------
+
+Ported to the STM32F7xx by Jan Zwiener, using the DoomGeneric portable Doom
+code base.
+
+              | |
+     _   _  __| | ___   ___  _ __ ___
+    | | | |/ _` |/ _ \ / _ \| '_ ` _ \
+    | |_| | (_| | (_) | (_) | | | | | |
+     \__,_|\__,_|\___/ \___/|_| |_| |_|
+
+     Doom for the STM32F7 microcontroller
 
