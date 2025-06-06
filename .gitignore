@@ -8,7 +8,8 @@ firmware.list
 firmware.map
 config.mk
 tags
-# VS-specific Zeug
+# VS-specific stuff
+.vscode/settings.json
 .vs
 *.user
 *.VC.db
