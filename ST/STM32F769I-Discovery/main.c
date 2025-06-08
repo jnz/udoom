@@ -6,7 +6,7 @@
     \__,_|\__,_|\___/ \___/|_| |_| |_|
 
 
-   Doom for the STM32F7 microcontroller
+   Doom for the STM32F769 microcontroller
    */
 
 /******************************************************************************
@@ -81,6 +81,12 @@ static uint8_t g_uart_rx_byte; // only modified in interrupt handler
 static volatile uint8_t g_uart_rx_buf[UART_RX_BUF_SIZE];
 static volatile int g_uart_rx_buf_size; // number of bytes in g_uart_rx_buf
 
+// Self Monitoring
+extern int gametic; // dooms internal timer from d_loop.c
+static uint32_t g_last_vsync;
+static int g_last_seen_gametic; // monitor gametic
+static uint32_t g_last_gametic_change_time; // timestamp of last gametic change
+
 /******************************************************************************
  * LOCAL FUNCTION PROTOTYPES
  ******************************************************************************/
@@ -94,8 +100,10 @@ static void Framebuffer_Clear(void);
 // UART
 static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
-// Profiler with cycle counter
+
+// Profiler / Self-Monitoring
 static void enable_dwt_cycle_counter(void);
+static void SelfMonitoring(void);
 
 /******************************************************************************
  * FUNCTION PROTOTYPES
@@ -133,6 +141,9 @@ int main(void)
     MX_USART1_UART_Init();
     printf("STM32F769I Discovery Doom\n"); // early sign of life
     printf("Core frequency: %lu MHz\n", HAL_RCC_GetHCLKFreq() / 1000000);
+    printf("Total stack size: %u bytes\n", stack_total());
+    printf("Total heap size: %u bytes\n", heap_total());
+    printf("Framebuffer size: %u bytes\n", sizeof(framebuffer1));
 
     // Display
     g_fblist[0] = (uint32_t)framebuffer1;
@@ -172,6 +183,9 @@ int main(void)
     Framebuffer_Clear();
 
     I_DoubleBufferEnable(1);
+    g_last_seen_gametic = gametic; // Self Monitoring
+    g_last_gametic_change_time = HAL_GetTick();
+    g_last_vsync = HAL_GetTick(); // Self Monitoring
     HAL_LTDC_ProgramLineEvent(phltdc, 0);
     int fpscounter = 0;
     uint32_t nextfpsupdate = HAL_GetTick() + 1000;
@@ -185,17 +199,19 @@ int main(void)
         doomgeneric_Tick();
         fpscounter++;
 
+        SelfMonitoring();
         cyclecount += DWT->CYCCNT - framestart; // count cycles used for this frame
         if (HAL_GetTick() > nextfpsupdate)
         {
             // ratio: CPU cycles spent on Doom vs total CPU cycles in 1 second
             float cpuload = (float)cyclecount / HAL_RCC_GetHCLKFreq();
             if (cpuload > 1.0f) { cpuload = 1.0f; }
-            printf("FPS%3i CPU%3u%% VID%3uHz Stack %u/%u Heap %u/%uKB Zone %u/%uM\n",
+            printf("FPS%3i CPU%3u%% VID%3uHz Stack %u/%u Heap %u/%uKB Zone %u/%uM gametic: %i time %u\n",
                    fpscounter, (int)(cpuload * 100), g_vsync_count,
                    stack_usage(), stack_total(),
                    heap_usage()/1024, heap_total()/1024,
-                   Z_ZoneUsage()/(1024*1024), Z_ZoneSize()/(1024*1024));
+                   Z_ZoneUsage()/(1024*1024), Z_ZoneSize()/(1024*1024),
+                   gametic, HAL_GetTick());
             cyclecount = 0;
             fpscounter = 0;
             g_vsync_count = 0;
@@ -246,6 +262,7 @@ void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
         g_fbready = 0;
         BSP_LED_Toggle(LED2); /* some developer feedback */
     }
+    g_last_vsync = HAL_GetTick();
     HAL_LTDC_ProgramLineEvent(hltdc, 0); // setup next VSYNC callback
     g_vsync_count++;
 }
@@ -633,6 +650,29 @@ void HAL_Delay_WFI(uint32_t Delay)
     while ((HAL_GetTick() - tickstart) < wait)
     {
         __WFI(); // wait for interrupt
+    }
+}
+
+static void SelfMonitoring(void)
+{
+    uint32_t time = HAL_GetTick();
+    if (g_last_seen_gametic != gametic)
+    {
+        g_last_seen_gametic = gametic;
+        g_last_gametic_change_time = time;
+    }
+    const uint32_t gametic_age_ms = time - g_last_gametic_change_time;
+    if (gametic_age_ms > 5000)
+    {
+        I_Error("gametic freeze. gametic: %i. Last change: %u ms. time: %u ms",
+                gametic, gametic_age_ms, time);
+    }
+
+    if (time - g_last_vsync > 1000)
+    {
+        I_Error("VSYNC callback no longer active. Time: %u. Last vsync: %u",
+                time, g_last_vsync);
+
     }
 }
 
