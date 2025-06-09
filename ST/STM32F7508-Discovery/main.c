@@ -160,6 +160,9 @@ int app_main(void)
 
     I_DoubleBufferEnable(1);
     HAL_LTDC_ProgramLineEvent(phltdc, 0);
+    g_last_seen_gametic = gametic; // Self Monitoring
+    g_last_gametic_change_time = HAL_GetTick();
+    g_last_vsync = HAL_GetTick(); // Self Monitoring
     int fpscounter = 0;
     uint32_t nextfpsupdate = HAL_GetTick() + 1000;
     uint32_t cyclecount = 0; // cycles used for Doom (reset every second)
@@ -235,6 +238,7 @@ void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
         g_fbready = 0;
         BSP_LED_Toggle(LED1); /* some developer feedback */
     }
+    g_last_vsync = HAL_GetTick();
     HAL_LTDC_ProgramLineEvent(hltdc, 0); // setup next VSYNC callback
     g_vsync_count++;
 }
@@ -616,13 +620,13 @@ static void SelfMonitoring(void)
     const uint32_t gametic_age_ms = time - g_last_gametic_change_time;
     if (gametic_age_ms > 5000)
     {
-        I_Error("freeze gametic %i@%u ms (HAL_GetTick)",
+        I_Error("gametic %i@%u ms (HAL_GetTick)",
                 gametic, time);
     }
 
     if (time - g_last_vsync > 1000)
     {
-        I_Error("VSYNC inactive %u ms. Last vsync: %u",
+        I_Error("VSYNC err %u/%u ms",
                 time, g_last_vsync);
 
     }

@@ -664,15 +664,16 @@ static void SelfMonitoring(void)
     const uint32_t gametic_age_ms = time - g_last_gametic_change_time;
     if (gametic_age_ms > 5000)
     {
-        I_Error("freeze gametic %i@%u ms (HAL_GetTick)",
+        I_Error("gametic %i@%u ms (HAL_GetTick)",
                 gametic, time);
     }
 
     if (time - g_last_vsync > 1000)
     {
-        I_Error("VSYNC inactive %u ms. Last vsync: %u",
+        I_Error("VSYNC err %u/%u ms",
                 time, g_last_vsync);
 
     }
 }
+
 
