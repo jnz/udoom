@@ -175,12 +175,12 @@ void SysTick_Handler(void)
 
 void DMA2D_IRQHandler(void)
 {
-  HAL_DMA2D_IRQHandler(&hdma2d);
+    HAL_DMA2D_IRQHandler(&hdma2d);
 }
 
 void LTDC_IRQHandler(void)
 {
-  HAL_LTDC_IRQHandler(phltdc);
+    HAL_LTDC_IRQHandler(phltdc);
 }
 
 /**
