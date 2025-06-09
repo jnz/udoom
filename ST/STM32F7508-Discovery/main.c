@@ -279,7 +279,7 @@ void I_Error(char *error, ...)
     {
         // pump out the error message forever
         // in case UART is connected after the error occurs
-        fprintf(stderr, "I_Error: %s\n", msgbuf);
+        fprintf(stderr, "I_Err %s\n", msgbuf);
         for (int i = 0; i < 100; ++i)
         {
             BSP_LED_Toggle(LED1); // indicate error
@@ -616,13 +616,13 @@ static void SelfMonitoring(void)
     const uint32_t gametic_age_ms = time - g_last_gametic_change_time;
     if (gametic_age_ms > 5000)
     {
-        I_Error("gametic freeze. gametic: %i. Last change: %u ms. time: %u ms",
-                gametic, gametic_age_ms, time);
+        I_Error("freeze gametic %i@%u ms (HAL_GetTick)",
+                gametic, time);
     }
 
     if (time - g_last_vsync > 1000)
     {
-        I_Error("VSYNC callback no longer active. Time: %u. Last vsync: %u",
+        I_Error("VSYNC inactive %u ms. Last vsync: %u",
                 time, g_last_vsync);
 
     }
