@@ -56,9 +56,13 @@ UART_HandleTypeDef  huart1;
 DMA_HandleTypeDef   hdma_usart1_tx;
 static uint8_t      g_uart_rx_byte; // only modified in interrupt handler
 
+char sdpath[4]; // SD logical drive path
+FATFS sdfatfs;  // File system object for SD logical drive
+
 /******************************************************************************
  * LOCAL DATA DEFINITIONS
  ******************************************************************************/
+
 
 /******************************************************************************
  * LOCAL FUNCTION PROTOTYPES
@@ -107,14 +111,13 @@ void I_BoardInit(void)
     BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
     BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
     BSP_LCD_SetBrightness(100); // brightness in %
-    I_FramebufferClearAll();
+
+    HAL_LTDC_ProgramLineEvent(&hltdc_discovery, 0);
 
     // Mount SD Card
     int line = 0;
     BSP_LCD_DisplayStringAtLine(line++, "STM32F769I Doom (jan@zwiener.org)");
     BSP_LCD_DisplayStringAtLine(line++, "Mounting SD Card...");
-    char sdpath[4]; // SD logical drive path
-    FATFS sdfatfs;  // File system object for SD logical drive
     if (FATFS_LinkDriver(&SD_Driver, sdpath) != 0)
     {
         I_Error("Failed to load SD card driver");
@@ -126,6 +129,8 @@ void I_BoardInit(void)
     }
     // from now on fopen() and other stdio functions will work with the SD card
     BSP_LED_Off(LED1); // MCU init complete
+
+    I_FramebufferClearAll();
 }
 
 void I_FramebufferClearAll(void)
