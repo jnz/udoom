@@ -69,7 +69,7 @@ DMA_HandleTypeDef   hdma_usart1_tx;
 
 // Double Buffering
 static uint32_t g_fblist[2]; // addresses of the two framebuffers
-static uint32_t g_vsync_count; // count vsync interrupts (reset every second)
+volatile static uint32_t g_vsync_count; // count vsync interrupts (reset every second)
 volatile static bool g_double_buffer_enabled = false; // initially set to false
 
 // Modified from interrupt handler and main code path:
@@ -83,7 +83,7 @@ static volatile int g_uart_rx_buf_size; // number of bytes in g_uart_rx_buf
 
 // Self Monitoring
 extern int gametic; // dooms internal timer from d_loop.c
-static uint32_t g_last_vsync;
+volatile static uint32_t g_last_vsync;
 static int g_last_seen_gametic; // monitor gametic
 static uint32_t g_last_gametic_change_time; // timestamp of last gametic change
 
@@ -662,18 +662,17 @@ static void SelfMonitoring(void)
         g_last_gametic_change_time = time;
     }
     const uint32_t gametic_age_ms = time - g_last_gametic_change_time;
-    if (gametic_age_ms > 5000)
+    if (gametic_age_ms > 10000)
     {
         I_Error("gametic %i@%u ms (HAL_GetTick)",
                 gametic, time);
     }
 
-    if (time - g_last_vsync > 1000)
+    if (time - g_last_vsync > 10000)
     {
         I_Error("VSYNC err %u/%u ms",
                 time, g_last_vsync);
 
     }
 }
-
 
