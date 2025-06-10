@@ -9,16 +9,19 @@ REM Erst versuchen mit Under Reset Mode
 STM32_Programmer_CLI.exe -c port=SWD mode=UR -el "%External_Loader%" -d "%Firmware%" %QSPI_Address% -rst
 
 IF ERRORLEVEL 1 (
-    echo Retry with slower frequency...
-    STM32_Programmer_CLI.exe -c port=SWD mode=UR freq=4000 -el "%External_Loader%" -d "%Firmware%" %QSPI_Address% -rst
-
-    IF ERRORLEVEL 1 (
-        echo QSPI Flash failed.
-        exit /b 1
-    ) ELSE (
-        echo QSPI Flash successful with slower frequency!
-    )
-) ELSE (
-    echo QSPI Flash successful!
+    echo QSPI Flash failed.
+    exit /b 1
 )
+
+pushd ST\STM32F7508-Discovery\bootloader
+call flash.bat
+set "FLASH_RESULT=%ERRORLEVEL%"
+popd
+
+IF %FLASH_RESULT% NEQ 0 (
+    echo QSPI Flash failed in bootloader.
+    exit /b 1
+)
+
+echo QSPI Flash complete.
 
