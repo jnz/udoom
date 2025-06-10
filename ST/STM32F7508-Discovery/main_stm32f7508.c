@@ -22,9 +22,11 @@
 #include "stm32f7508_discovery.h"
 #include "stm32f7508_discovery_lcd.h"
 #include "stm32f7508_discovery_sdram.h"
+#include "main_stm32f7xx.h"
+#include "memusage.h"
+// Doom includes
 #include "doomgeneric.h"
 #include "doomkeys.h"
-#include "main_stm32f7xx.h"
 
 /******************************************************************************
  * DEFINES

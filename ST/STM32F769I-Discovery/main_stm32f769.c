@@ -26,6 +26,8 @@
 #include "ff_gen_drv.h"
 #include "sd_diskio.h"
 /* </mass storage> */
+
+// Doom includes
 #include "doomgeneric.h"
 #include "doomkeys.h"
 
