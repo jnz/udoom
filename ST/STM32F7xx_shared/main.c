@@ -203,7 +203,8 @@ void I_Error(char *error, ...)
     g_frame_ready = 0;
     I_ErrorDisplay(msgbuf); // board specific error display
 
-    while(1) // stay forever
+    const uint32_t time = HAL_GetTick();
+    while(1)
     {
         // pump out the error message forever
         // in case UART is connected after the error occurs
@@ -211,6 +212,12 @@ void I_Error(char *error, ...)
         for (int i = 0; i < 200; ++i)
         {
             HAL_Delay_WFI(50);
+        }
+
+        // after X seconds, reset the board
+        if (time - HAL_GetTick() > 60000)
+        {
+            NVIC_SystemReset();
         }
     }
 }
