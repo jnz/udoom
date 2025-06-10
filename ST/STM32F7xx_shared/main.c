@@ -65,7 +65,6 @@ static uint32_t g_last_gametic_change_time; // timestamp of last gametic change
  ******************************************************************************/
 
 // Profiler / Self-Monitoring
-static void enable_dwt_cycle_counter(void);
 static void self_monitoring(void);
 
 // Keyboard Input
@@ -81,11 +80,11 @@ static int map_ascii_to_doom(uint8_t c);
 
 static void board_common_init_post(void)
 {
-    stack_fill_with_magic();
-    enable_dwt_cycle_counter();
     g_fblist[0] = (uint32_t)I_FramebufferGet(0);
     g_fblist[1] = (uint32_t)I_FramebufferGet(1);
     g_last_vsync = HAL_GetTick();
+    g_last_seen_gametic = gametic; // Self Monitoring
+    g_last_gametic_change_time = HAL_GetTick();
 
     printf("STM32F7xx Doom\n"); // early sign of life
     printf("Core frequency: %lu MHz\n", HAL_RCC_GetHCLKFreq() / 1000000);
@@ -100,6 +99,7 @@ int main(void)
 
     char* argv[] = { "doom.exe" };
     doomgeneric_Create(1, argv);
+    I_FramebufferClearAll();
     I_DoubleBufferEnable(1);
 
     uint32_t cyclecount = 0;
@@ -109,7 +109,9 @@ int main(void)
     while (1)
     {
         const uint32_t cyclestart = DWT->CYCCNT;
+        __disable_irq();
         DG_ScreenBuffer = (pixel_t*)g_fblist[g_fbcur]; // prepare the framebuffer for drawing
+        __enable_irq();
         doomgeneric_Tick();
         fpscounter++;
 
@@ -120,14 +122,19 @@ int main(void)
         {
             float cpuload = (float)cyclecount / HAL_RCC_GetHCLKFreq();
             if (cpuload > 1.0f) { cpuload = 1.0f; }
-            printf("FPS%3i CPU%3u%% VID%3uHz\n", fpscounter, (int)(cpuload * 100), g_vsync_count);
+            printf("FPS%3i CPU%3u%% VID%3uHz Stack %u/%u Heap %u/%uKB Zone %u/%uM gametic: %i time %u\n",
+                   fpscounter, (int)(cpuload * 100), g_vsync_count,
+                   stack_usage(), stack_total(),
+                   heap_usage()/1024, heap_total()/1024,
+                   Z_ZoneUsage()/(1024*1024), Z_ZoneSize()/(1024*1024),
+                   gametic, HAL_GetTick());
             fpscounter = 0;
             cyclecount = 0;
             g_vsync_count = 0;
             nextfpsupdate += 1000;
         }
 
-        while (!g_frame_ready)
+        while (g_frame_ready) /* wait until consumed */
         {
             __WFI();
         }
@@ -305,7 +312,7 @@ int DG_GetKey(int* pressed, unsigned char* doomKey)
     return 0;
 }
 
-static void enable_dwt_cycle_counter(void)
+void enable_dwt_cycle_counter(void)
 {
     CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
     *((volatile uint32_t*)0xE0001FB0) = 0xC5ACCE55; // DWT_LAR unlock

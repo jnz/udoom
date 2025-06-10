@@ -80,6 +80,8 @@ void I_BoardInit(void)
     CPU_CACHE_Enable();
     HAL_Init();
     SystemClock_Config();
+    stack_fill_with_magic();
+    enable_dwt_cycle_counter();
 
     // LEDs
     BSP_LED_Init(LED1);

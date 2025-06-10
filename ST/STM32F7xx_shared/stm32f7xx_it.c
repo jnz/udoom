@@ -25,7 +25,6 @@
 #include "stm32f769i_discovery.h"
 extern LTDC_HandleTypeDef hltdc_discovery;
 static LTDC_HandleTypeDef* phltdc = &hltdc_discovery;
-extern DMA_HandleTypeDef hdma_usart1_tx;
 #endif
 #ifdef STM32F750xx
 #include "stm32f7508_discovery.h"
@@ -224,16 +223,6 @@ void BSP_SDMMC_IRQHandler(void)
 {
     HAL_SD_IRQHandler(&uSdHandle);
 }
-
-/**
- * @brief This function handles DMA2 stream7 global interrupt.
- */
-#ifdef STM32F769xx
-void DMA2_Stream7_IRQHandler(void)
-{
-    HAL_DMA_IRQHandler(&hdma_usart1_tx);
-}
-#endif
 
 /**
  * @brief This function handles USART1 global interrupt.

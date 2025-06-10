@@ -36,3 +36,5 @@ uint32_t* I_FramebufferGet(int index);
 void I_StdinByteRecv(uint8_t byte);
 void I_ErrorDisplay(const char* msg);
 
+void enable_dwt_cycle_counter(void);
+

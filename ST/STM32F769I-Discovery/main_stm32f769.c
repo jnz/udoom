@@ -20,13 +20,14 @@
 #include "stm32f769i_discovery.h"
 #include "stm32f769i_discovery_lcd.h"
 #include "stm32f769i_discovery_sdram.h"
+#include "main_stm32f7xx.h"
+#include "memusage.h"
 /* <mass storage> */
 #include "ff_gen_drv.h"
 #include "sd_diskio.h"
 /* </mass storage> */
 #include "doomgeneric.h"
 #include "doomkeys.h"
-#include "main_stm32f7xx.h"
 
 /******************************************************************************
  * DEFINES
@@ -53,7 +54,6 @@ extern pixel_t* DG_ScreenBuffer; // 320x200 buffer for doom (8bpp)
 
 // UART
 UART_HandleTypeDef  huart1;
-DMA_HandleTypeDef   hdma_usart1_tx;
 static uint8_t      g_uart_rx_byte; // only modified in interrupt handler
 
 char sdpath[4]; // SD logical drive path
@@ -90,6 +90,8 @@ void I_BoardInit(void)
     CPU_CACHE_Enable();
     HAL_Init();
     SystemClock_Config();
+    stack_fill_with_magic();
+    enable_dwt_cycle_counter();
 
     // LEDs
     BSP_LED_Init(LED1);
@@ -111,6 +113,7 @@ void I_BoardInit(void)
     BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
     BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
     BSP_LCD_SetBrightness(100); // brightness in %
+    I_FramebufferClearAll();
 
     HAL_LTDC_ProgramLineEvent(&hltdc_discovery, 0);
 
@@ -130,7 +133,6 @@ void I_BoardInit(void)
     // from now on fopen() and other stdio functions will work with the SD card
     BSP_LED_Off(LED1); // MCU init complete
 
-    I_FramebufferClearAll();
 }
 
 void I_FramebufferClearAll(void)
@@ -293,7 +295,6 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
         /* USART1 clock enable */
         __HAL_RCC_USART1_CLK_ENABLE();
         __HAL_RCC_GPIOA_CLK_ENABLE();
-        __HAL_RCC_DMA2_CLK_ENABLE();  // USART1 uses DMA2
 
         /**USART1 GPIO Configuration
           PA9  ------> USART1_TX
@@ -305,21 +306,6 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
         GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
         GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
         HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-        /* USART1 TX DMA Init */
-        hdma_usart1_tx.Instance = DMA2_Stream7;
-        hdma_usart1_tx.Init.Channel = DMA_CHANNEL_4;
-        hdma_usart1_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
-        hdma_usart1_tx.Init.PeriphInc = DMA_PINC_DISABLE;
-        hdma_usart1_tx.Init.MemInc = DMA_MINC_ENABLE;
-        hdma_usart1_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-        hdma_usart1_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-        hdma_usart1_tx.Init.Mode = DMA_NORMAL;
-        hdma_usart1_tx.Init.Priority = DMA_PRIORITY_LOW;
-        hdma_usart1_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-        HAL_DMA_Init(&hdma_usart1_tx);
-
-        __HAL_LINKDMA(uartHandle, hdmatx, hdma_usart1_tx);
 
         /* USART1 interrupt Init */
         HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
