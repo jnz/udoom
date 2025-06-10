@@ -12,27 +12,12 @@ DOOM is a registered trademark of id Software.”*
 
 ![gif](doc/DOOM2STM32F769I.gif)
 
-Performance:
-
-The STM32F769 runs at a solid setpoint 35 FPS which is nicely VSYNC'd to the display of the
-discovery board.
-The CPU usage is at about 25 percent when compiled with `-O2` and ignoring the time spend waiting for
-the DMA2D transfers to be complete (the CPU is saving power with `__WFI` during that period).
-The default build is using `-Og` for smooth debugging.
-Worst-case stack usage is about 2KB of 8KB total. Heap usage is a chunk of 84KB.
-Zone memory is about 9MB for Doom 2 if a total zone memory of 12M is supplied.
-Doom can deal with less memory though.
-
-The STM32F769I-DISCO board uses an LCD display with a 45° tearing effect
-limitation during the transition between the front- and backbuffer image though, which
-looks ugly.
-
 Possible improvements:
 ----------------------
 
     [ ] LED feedback on fire and/or hits (easy).
     [ ] WAD Loader SD-card selection screen.
-    [ ] Profiling and bottleneck analysis. Where is the most time spent on?
+    [ ] Profiling and bottleneck analysis — where is most of the time spent?
     [ ] Bilinear interpolation for the 32Bit framebuffer output.
     [ ] Add support for the RGB565 16bit mode + benchmark it.
     [ ] DIY controller with buttons and GPIO inputs.
@@ -49,12 +34,13 @@ Possible improvements:
     [ ] Add STM32 communication via UDP and enable DHCP support (LwIP stack).
     [ ] Microphone input: enable simple inputs via microphone input.
     [ ] Gyroscope support, e.g. from the MPU6050 to control the player view.
-    [ ] Stream game via MJPEG to a web browers (requires LwIP support).
+    [ ] Stream game via MJPEG to web browsers (requires LwIP support).
     [ ] Add support for Heretic/Hexen.
-    [ ] Add midi sound output (hard).
+    [ ] Add MIDI sound output (hard).
     [ ] Xbee Multiplayer support (hard).
     [ ] Add multiplayer support via UART/SPI/UDP (hard).
     [ ] Add an AI bot to play the game (hard).
+
 
 Toolchain Setup
 ---------------
@@ -68,7 +54,7 @@ Extract to a folder.
 Edit `config.mk` and point `TOOLCHAIN_ROOT` to that folder (ensure it ends with a slash!).
 On Linux e.g.:
 
-    TOOLCHAIN_ROOT= /home/user/arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi/bin/
+    TOOLCHAIN_ROOT=/home/user/arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi/bin/
 
 On Windows e.g.:
 
@@ -103,7 +89,7 @@ Then compile for the STM32F7508:
 
     make -j10 BOARD=STM32F7508_DK
 
-The STM32F7508 version has a huge flash memory and the `doom1.wad` (Shareware
+The STM32F7508 version has a large QSPI flash memory and the `doom1.wad` (Shareware
 version) is embedded in the firmware in the build process, so no SD card is
 required. But the firmware has to be uploaded on the Quad-SPI flash memory.
 This requires the STM32 Cube Programmer from ST with an external loader.
@@ -164,6 +150,23 @@ Add the following to your VS Code settings.json (adapt paths as needed):
     "cortex-debug.gdbPath.windows": "C:/Tools/arm-gnu-toolchain-13.3.rel1-mingw-w64-i686-arm-none-eabi/bin/arm-none-eabi-gdb.exe"
 
 Debugging in VS Code should now work.
+
+Performance
+-----------
+
+The STM32F769 runs at a solid setpoint 35 FPS which is nicely VSYNC'd to the display of the
+discovery board.
+The CPU usage is at about 25 percent when compiled with `-O2` and ignoring the time spent waiting for
+the DMA2D transfers to be complete (the CPU is saving power with `__WFI` during that period).
+The default build is using `-Og` for smooth debugging.
+Worst-case stack usage is about 2KB of 8KB total. Heap usage is a chunk of 84KB.
+Zone memory is about 9MB for Doom 2 if a total zone memory of 12M is supplied.
+Doom can deal with less memory though.
+
+The STM32F769I-DISCO board uses an LCD with a 45° tearing effect
+limitation during the transition between the front- and backbuffer image though, which
+looks ugly.
+
 
 Manual Debugging
 ----------------
@@ -315,7 +318,7 @@ buffers. Also the SDRAM must be initialized and mapped to `0xC0000000` with:
     BSP_SDRAM_Init();
 
 Otherwise the SDRAM is not accessible.
-Note that Doom 2 needs significantly more zone memory than Doom 1.
+Note: Doom 2 needs significantly more zone memory than Doom 1.
 
 Reading .WAD Files from SD Card
 -------------------------------
@@ -357,7 +360,7 @@ This is a minimal example to glue a FatFs FIL struct to an fopen call:
         return -1;
     }
 
-So `ST/STM32F769I-Discovery/syscalls.c` for a complete implementation.
+See `ST/STM32F769I-Discovery/syscalls.c` for a complete implementation.
 
 Bootloader for STM32F7508
 -------------------------
