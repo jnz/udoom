@@ -30,31 +30,31 @@ looks ugly.
 Possible improvements:
 ----------------------
 
-[ ] LED feedback on fire and/or hits (easy).
-[ ] WAD Loader SD-card selection screen.
-[ ] Profiling and bottleneck analysis. Where is the most time spent on?
-[ ] Bilinear interpolation for the 32Bit framebuffer output.
-[ ] Add support for the RGB565 16bit mode + benchmark it.
-[ ] DIY controller with buttons and GPIO inputs.
-[ ] Add touchscreen support. Allow simple gameplay via touchscreen input and gestures.
-[ ] Dynamic textures, e.g. replace a wall texture with dynamic content.
-[ ] Port to the STM32F429I-Discovery board.
-[ ] Play Doom with a TV remote - recognize button presses via IR receiver.
-[ ] Vibration motor control (PWM-driven motor to react on hits in the game).
-[ ] HDMI output for the STM32F769I-Discovery board.
-[ ] Port to the STM32N6570-DK Discovery board.
-[ ] Reduce power consumption challenge. Measure and reduce the power usage by X percent.
-[ ] Save screenshots to the SD card on a button press.
-[ ] Add sound output.
-[ ] Add STM32 communication via UDP and enable DHCP support (LwIP stack).
-[ ] Microphone input: enable simple inputs via microphone input.
-[ ] Gyroscope support, e.g. from the MPU6050 to control the player view.
-[ ] Stream game via MJPEG to a web browers (requires LwIP support).
-[ ] Add support for Heretic/Hexen.
-[ ] Add midi sound output (hard).
-[ ] Xbee Multiplayer support (hard).
-[ ] Add multiplayer support via UART/SPI/UDP (hard).
-[ ] Add an AI bot to play the game (hard).
+    [ ] LED feedback on fire and/or hits (easy).
+    [ ] WAD Loader SD-card selection screen.
+    [ ] Profiling and bottleneck analysis. Where is the most time spent on?
+    [ ] Bilinear interpolation for the 32Bit framebuffer output.
+    [ ] Add support for the RGB565 16bit mode + benchmark it.
+    [ ] DIY controller with buttons and GPIO inputs.
+    [ ] Add touchscreen support. Allow simple gameplay via touchscreen input and gestures.
+    [ ] Dynamic textures, e.g. replace a wall texture with dynamic content.
+    [ ] Port to the STM32F429I-Discovery board.
+    [ ] Play Doom with a TV remote - recognize button presses via IR receiver.
+    [ ] Vibration motor control (PWM-driven motor to react on hits in the game).
+    [ ] HDMI output for the STM32F769I-Discovery board.
+    [ ] Port to the STM32N6570-DK Discovery board.
+    [ ] Reduce power consumption challenge. Measure and reduce the power usage by X percent.
+    [ ] Save screenshots to the SD card on a button press.
+    [ ] Add sound output.
+    [ ] Add STM32 communication via UDP and enable DHCP support (LwIP stack).
+    [ ] Microphone input: enable simple inputs via microphone input.
+    [ ] Gyroscope support, e.g. from the MPU6050 to control the player view.
+    [ ] Stream game via MJPEG to a web browers (requires LwIP support).
+    [ ] Add support for Heretic/Hexen.
+    [ ] Add midi sound output (hard).
+    [ ] Xbee Multiplayer support (hard).
+    [ ] Add multiplayer support via UART/SPI/UDP (hard).
+    [ ] Add an AI bot to play the game (hard).
 
 Toolchain Setup
 ---------------
