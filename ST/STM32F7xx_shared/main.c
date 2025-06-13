@@ -192,6 +192,7 @@ uint8_t *I_ZoneBase (int *size)
 
 void I_Error(char *error, ...)
 {
+    const uint32_t time = HAL_GetTick();
     static bool already_quitting = false;
     char msgbuf[256];
     va_list argptr;
@@ -206,12 +207,11 @@ void I_Error(char *error, ...)
     g_frame_ready = 0;
     I_ErrorDisplay(msgbuf); // board specific error display
 
-    const uint32_t time = HAL_GetTick();
     while(1)
     {
         // pump out the error message continuously
         // in case UART is connected after the error occurs
-        fprintf(stderr, "I_Err %s\n", msgbuf);
+        fprintf(stderr, "I_Err %s (time: %u)\n", msgbuf, time);
         for (int i = 0; i < 200; ++i)
         {
             HAL_Delay_WFI(50);
@@ -219,7 +219,7 @@ void I_Error(char *error, ...)
 
 #if 0
         // after X seconds, reset the board
-        if (time - HAL_GetTick() > 5000)
+        if (HAL_GetTick() - time > 5000)
         {
             NVIC_SystemReset();
         }
