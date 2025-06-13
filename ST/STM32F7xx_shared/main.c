@@ -364,7 +364,10 @@ static void self_monitoring(void)
         NVIC_SystemReset(); // Doom internal error, just reset
     }
 
-    if (time - g_last_vsync > VSYNC_TIMEOUT_MS)
+    __disable_irq();
+    const uint32_t dt_vsync = HAL_GetTick() - g_last_vsync;
+    __enable_irq();
+    if (dt_vsync > VSYNC_TIMEOUT_MS)
     {
         I_Error("VSYNC err %u/%u ms",
                 time, g_last_vsync);
