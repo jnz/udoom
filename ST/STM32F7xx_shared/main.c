@@ -360,8 +360,8 @@ static void self_monitoring(void)
     const uint32_t gametic_age_ms = time - g_last_gametic_change_time;
     if (gametic_age_ms > DOOM_TIMEOUT_MS)
     {
+        printf("gametic error %i@%u ms (HAL_GetTick)", gametic, time);
         NVIC_SystemReset(); // Doom internal error, just reset
-        // I_Error("gametic %i@%u ms (HAL_GetTick)", gametic, time);
     }
 
     if (time - g_last_vsync > VSYNC_TIMEOUT_MS)
