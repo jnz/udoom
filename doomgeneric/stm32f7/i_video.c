@@ -50,17 +50,24 @@ static scale_func_t selected_scaler = NULL;
 
 DMA2D_HandleTypeDef hdma2d;
 
+__attribute__((optimize("O3", "unroll-loops")))
 static void scale_generic(const uint8_t* src, uint8_t* dst, int w, int h, float scale)
 {
     int dst_w = (int)(w * scale);
     int dst_h = (int)(h * scale);
+
+    float inv_scale = 1.0f / scale;
+
     for (int y = 0; y < dst_h; ++y)
     {
-        int src_y = (int)(y / scale);
+        int src_y = (int)(y * inv_scale);
+        const uint8_t* src_row = src + src_y * w;
+        uint8_t* dst_row = dst + y * dst_w;
+
         for (int x = 0; x < dst_w; ++x)
         {
-            int src_x = (int)(x / scale);
-            dst[y * dst_w + x] = src[src_y * w + src_x];
+            int src_x = (int)(x * inv_scale);
+            dst_row[x] = src_row[src_x];
         }
     }
 }
@@ -132,6 +139,9 @@ void I_InitGraphics(void)
 #ifdef STM32F769xx
         fb_scaling = 2.0f;
 #endif
+#ifdef STM32F750xx
+        fb_scaling = 1.25f;
+#endif
     }
     printf("I_InitGraphics: DOOM screen size: w x h: %d x %d\n", SCREENWIDTH, SCREENHEIGHT);
     printf("I_InitGraphics: screen size: w x h: %d x %d\n", s_Fb_xres, s_Fb_yres);
@@ -176,7 +186,10 @@ static void BlitDoomFrame(const uint8_t *src, uint32_t *dst, int width, int heig
     int out_h = (int)(fb_scaling * height);
     uint8_t* scaled = (fb_scaling == 1.0f) ? (uint8_t*)src : VideoBuffer2X;
 
-    selected_scaler(src, scaled, width, height, fb_scaling);
+    if (fb_scaling != 1.0f)
+    {
+        selected_scaler(src, scaled, width, height, fb_scaling);
+    }
 
     uint32_t* dst_center = dst + ((BSP_LCD_GetYSize() - out_h) / 2) * BSP_LCD_GetXSize()
                                 + ((BSP_LCD_GetXSize() - out_w) / 2);
