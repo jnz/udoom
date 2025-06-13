@@ -53,7 +53,13 @@ DMA2D_HandleTypeDef hdma2d;
 __attribute__((optimize("O3", "unroll-loops")))
 static void scale_generic(const uint8_t* src, uint8_t* dst, int w, int h, float scale)
 {
-    uint32_t inv_scale_fp = (uint32_t)(65536.0f / scale); // Q16.16
+    /*
+       x * (1 / scale)
+            with: inv_scale_fp ≈ (1 / scale) * 65536
+       ≈  x * (inv_scale_fp / 65536)
+       ≈ (x * inv_scale_fp) >> 16
+    */
+    uint32_t inv_scale_fp = (uint32_t)(65536.0f / scale);
     int dst_w = (int)(w * scale);
     int dst_h = (int)(h * scale);
 
