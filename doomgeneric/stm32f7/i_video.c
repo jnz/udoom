@@ -50,7 +50,7 @@ static scale_func_t selected_scaler = NULL;
 
 DMA2D_HandleTypeDef hdma2d;
 
-__attribute__((optimize("O3", "unroll-loops")))
+__attribute__((optimize("O2", "unroll-loops")))
 static void scale_generic(const uint8_t* src, uint8_t* dst, int w, int h, float scale)
 {
     /*
