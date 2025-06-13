@@ -31,6 +31,14 @@
 #define UART_RX_BUF_SIZE     2   // must be power of 2
 #define UART_KEY_HOLD_MS     100 // mark a key as released after xxx ms over uart
 
+#define VSYNC_TIMEOUT_MS     1000 // Self Monitor: if there is no VSYNC
+                                  // interrupt for more than X milliseconds,
+                                  // something is broken with the display
+                                  // controller
+#define DOOM_TIMEOUT_MS      5000 // Self Monitor: if Doom is not updating
+                                  // itself for more than X milliseconds we
+                                  // need to reset.
+
 /******************************************************************************
  * TYPEDEFS
  ******************************************************************************/
@@ -356,7 +364,7 @@ static void self_monitoring(void)
         // I_Error("gametic %i@%u ms (HAL_GetTick)", gametic, time);
     }
 
-    if (time - g_last_vsync > 10000)
+    if (time - g_last_vsync > VSYNC_TIMEOUT_MS)
     {
         I_Error("VSYNC err %u/%u ms",
                 time, g_last_vsync);
