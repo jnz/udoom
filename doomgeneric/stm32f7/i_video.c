@@ -77,6 +77,7 @@ static void scale_generic(const uint8_t* src, uint8_t* dst, int w, int h, float 
     }
 }
 
+__attribute__((optimize("O2", "unroll-loops")))
 static void scale_2x(const uint8_t* src, uint8_t* dst, int w, int h, float scale)
 {
     (void)scale;
