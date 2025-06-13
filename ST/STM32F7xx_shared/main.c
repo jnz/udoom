@@ -358,7 +358,7 @@ static void self_monitoring(void)
         g_last_gametic_change_time = time;
     }
     const uint32_t gametic_age_ms = time - g_last_gametic_change_time;
-    if (gametic_age_ms > 5000)
+    if (gametic_age_ms > DOOM_TIMEOUT_MS)
     {
         NVIC_SystemReset(); // Doom internal error, just reset
         // I_Error("gametic %i@%u ms (HAL_GetTick)", gametic, time);
