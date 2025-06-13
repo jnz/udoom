@@ -74,6 +74,8 @@ APP_INCLUDE_PATH += \
 S_STARTUP := startup_stm32f769xx
 S_SRC += ST/STM32F769I-Discovery/$(S_STARTUP).s
 
+FLASH_SCRIPT := flash
+
 endif
 
 # =======================================================================
@@ -96,6 +98,7 @@ S_STARTUP := startup_stm32f750xx
 S_SRC += ST/STM32F7508-Discovery/$(S_STARTUP).s
 
 WAD_ENABLED := 1
+FLASH_SCRIPT := flash_qspi
 
 endif
 
@@ -256,12 +259,15 @@ post-build:
 	@echo "Creating dump file $@"
 	$(Q)$(OD) $(ODFLAGS) $< > $@
 
-flash: all
 ifeq ($(OS),Windows_NT)
-	@flash.bat
+    FLASH_EXT := .bat
 else
-	@./flash.sh
+    FLASH_EXT := .sh
 endif
+
+flash: all
+	@echo "Flashing with $(FLASH_SCRIPT)$(FLASH_EXT)"
+	@$(FLASH_SCRIPT)$(FLASH_EXT)
 
 .FORCE:
 
