@@ -118,7 +118,7 @@ int main(void)
         self_monitoring();
         cyclecount += DWT->CYCCNT - cyclestart; // count cycles used for this frame
 
-        if (HAL_GetTick() > nextfpsupdate)
+        if (HAL_GetTick() > nextfpsupdate) // emit some debug info to printf/UART
         {
             float cpuload = (float)cyclecount / HAL_RCC_GetHCLKFreq();
             if (cpuload > 1.0f) { cpuload = 1.0f; }
@@ -133,11 +133,9 @@ int main(void)
             g_vsync_count = 0;
             nextfpsupdate += 1000;
         }
-
-        while (g_frame_ready) /* wait until consumed */
-        {
-            __WFI();
-        }
+        /* wait until VSYNC (HAL_LTDC_LineEventCallback) has consumed the
+         * latest frame: */
+        while (g_frame_ready) { __WFI(); }
     }
     return 0;
 }
@@ -190,10 +188,7 @@ void I_Error(char *error, ...)
     char msgbuf[256];
     va_list argptr;
 
-    if (already_quitting)
-    {
-        return;
-    }
+    if (already_quitting) { return; }
     already_quitting = true;
 
     va_start(argptr, error);
@@ -206,7 +201,7 @@ void I_Error(char *error, ...)
     const uint32_t time = HAL_GetTick();
     while(1)
     {
-        // pump out the error message forever
+        // pump out the error message continuously
         // in case UART is connected after the error occurs
         fprintf(stderr, "I_Err %s\n", msgbuf);
         for (int i = 0; i < 200; ++i)
@@ -214,11 +209,13 @@ void I_Error(char *error, ...)
             HAL_Delay_WFI(50);
         }
 
+#if 0
         // after X seconds, reset the board
-        if (time - HAL_GetTick() > 60000)
+        if (time - HAL_GetTick() > 5000)
         {
             NVIC_SystemReset();
         }
+#endif
     }
 }
 
@@ -353,10 +350,10 @@ static void self_monitoring(void)
         g_last_gametic_change_time = time;
     }
     const uint32_t gametic_age_ms = time - g_last_gametic_change_time;
-    if (gametic_age_ms > 10000)
+    if (gametic_age_ms > 5000)
     {
-        I_Error("gametic %i@%u ms (HAL_GetTick)",
-                gametic, time);
+        NVIC_SystemReset(); // Doom internal error, just reset
+        // I_Error("gametic %i@%u ms (HAL_GetTick)", gametic, time);
     }
 
     if (time - g_last_vsync > 10000)

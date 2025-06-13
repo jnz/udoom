@@ -28,7 +28,9 @@
 #ifdef STM32F769xx
 #include "stm32f769i_discovery_lcd.h"
 #define DMA2D_HW_ACCEL
-#else
+#endif
+
+#ifdef STM32F750xx
 #include "stm32f7508_discovery_lcd.h"
 #define DMA2D_HW_ACCEL
 #endif
@@ -113,12 +115,11 @@ static byte* VideoBuffer2X;
 void I_GetEvent(void);
 
 // The screen buffer; this is modified to draw things to the screen
-
 #ifdef STM32F769xx
-byte VideoBuffer[SCREENWIDTH * SCREENHEIGHT];
+byte VideoBuffer[SCREENWIDTH * SCREENHEIGHT]; // The STM32F769 has enough RAM
 byte *I_VideoBuffer = VideoBuffer;
 #else
-byte *I_VideoBuffer;
+byte *I_VideoBuffer = NULL; // for e.g. the STM32F7508 we need to malloc this
 #endif
 
 // If true, game is running as a screensaver
