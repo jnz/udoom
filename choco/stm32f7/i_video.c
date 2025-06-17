@@ -152,7 +152,7 @@ void I_InitGraphics(void)
         fb_scaling = 2.0f;
 #endif
 #ifdef STM32F750xx
-        fb_scaling = 1.25f;
+        // fb_scaling = 1.25f;
 #endif
     }
     printf("I_InitGraphics: DOOM screen size: w x h: %d x %d\n", SCREENWIDTH, SCREENHEIGHT);
