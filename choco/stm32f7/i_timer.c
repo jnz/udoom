@@ -20,6 +20,7 @@
 #include "stm32f7xx.h"
 #include "i_timer.h"
 #include "doomtype.h"
+#include "main_stm32f7xx.h"
 
 //
 // I_GetTime
@@ -62,8 +63,8 @@ int I_GetTimeMS(void)
 
 void I_Sleep(int ms)
 {
-#warning "Use HAL_Delay_WFI(uint32_t Delay)"
-    HAL_Delay(ms);
+    // HAL_Delay(ms);
+    HAL_Delay_WFI(ms);
 }
 
 void I_WaitVBL(int count)
