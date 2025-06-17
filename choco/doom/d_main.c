@@ -310,6 +310,9 @@ void D_Display (void)
     // wipe update
     wipe_EndScreen(0, 0, SCREENWIDTH, SCREENHEIGHT);
 
+    extern void I_DoubleBufferEnable(int enable);
+    I_DoubleBufferEnable(0);
+
     wipestart = I_GetTime () - 1;
 
     do
@@ -328,6 +331,7 @@ void D_Display (void)
     M_Drawer ();                            // menu is drawn even on top of wipes
     I_FinishUpdate ();                      // page flip or blit buffer
     } while (!done);
+    I_DoubleBufferEnable(1);
 }
 
 //
