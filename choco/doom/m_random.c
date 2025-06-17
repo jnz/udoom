@@ -70,7 +70,11 @@ void M_ClearRandom (void)
 
     // Seed the M_Random counter from the system time
 
+#ifdef EMBEDDED
+    rndindex = 0;
+#else
     rndindex = time(NULL) & 0xff;
+#endif
 }
 
 

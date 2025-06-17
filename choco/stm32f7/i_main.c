@@ -24,14 +24,6 @@
 #include "i_system.h"
 #include "m_argv.h"
 
-// Stub for time() -> FIXME: who calls this?
-#include <time.h>
-time_t time(time_t *t)
-{
-    if (t) *t = 0;
-    return 0;
-}
-
 //
 // D_DoomMain()
 // Not a globally visible function, just included for source reference,
