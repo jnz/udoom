@@ -531,6 +531,7 @@ boolean D_InitNetGame(net_connect_data_t *connect_data)
 
         // Wait for launch message received from server.
 
+        extern void NET_WaitForLaunch(void);
         NET_WaitForLaunch();
 
         result = true;

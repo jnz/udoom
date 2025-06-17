@@ -24,7 +24,7 @@
 #include "i_system.h"
 #include "m_argv.h"
 
-// Stub for time -> FIXME: who calls this?
+// Stub for time() -> FIXME: who calls this?
 #include <time.h>
 time_t time(time_t *t)
 {
@@ -39,6 +39,23 @@ time_t time(time_t *t)
 //
 
 void D_DoomMain (void);
+
+#ifdef FEATURE_MULTIPLAYER
+void NET_WaitForLaunch(void)
+{
+    while(net_waiting_for_launch)
+    {
+        NET_CL_Run();
+        NET_SV_Run();
+
+        if (!net_client_connected)
+        {
+            NVIC_SystemReset();
+        }
+    }
+
+}
+#endif
 
 int doom_main(int argc, char **argv)
 {
