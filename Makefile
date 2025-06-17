@@ -36,9 +36,9 @@ WAD_OBJ := $(OBJDIR)/doom1wad.o
 # App source directories
 APP_SUBDIRS += \
 	./src \
-	./doomgeneric \
-	./doomgeneric/doom \
-	./doomgeneric/stm32f7 \
+	./choco \
+	./choco/doom \
+	./choco/stm32f7 \
 	$(HAL_DIR)/Src \
 	ST/STM32F7xx_shared
 
@@ -46,8 +46,8 @@ APP_SUBDIRS += \
 APP_INCLUDE_PATH += \
   -I./inc \
   -I./ST/STM32F7xx_shared \
-  -I./doomgeneric \
-  -I./doomgeneric/doom \
+  -I./choco \
+  -I./choco/doom \
   -I$(CMSIS_DIR)/Include \
   -I$(CMSIS_DIR)/Device/ST/STM32F7xx/Include \
   -I$(HAL_DIR)/Inc

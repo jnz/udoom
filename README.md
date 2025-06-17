@@ -233,7 +233,7 @@ DMA2D is used to convert this to a 32-bit ARGB8888 image for the display.
 
     ⚠️ Note: DMA2D does not support scaling. Scaling to 640×400 must be done in software.
 
-The color palette is defined in `doomgeneric/stm32f7/i_video.c`:
+The color palette is defined in `choco/stm32f7/i_video.c`:
 
     static uint32_t dma2d_clut[256];
 
@@ -388,8 +388,7 @@ address of 0x08000000), which points to the internal flash memory.
 Development
 -----------
 
-Ported to the STM32F7xx by Jan Zwiener, using the DoomGeneric portable Doom
-code base.
+Ported to the STM32F7xx by Jan Zwiener, using Chocolate Doom code base.
 
               | |
      _   _  __| | ___   ___  _ __ ___
