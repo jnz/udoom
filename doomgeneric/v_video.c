@@ -27,7 +27,7 @@
 
 #include "doomtype.h"
 
-#include "deh_str.h"
+// #include "deh_str.h"
 #include "i_swap.h"
 #include "i_video.h"
 #include "m_bbox.h"
@@ -162,7 +162,7 @@ void V_DrawPatch(int x, int y, patch_t *patch)
      || y < 0
      || y + SHORT(patch->height) > SCREENHEIGHT)
     {
-        I_Error("Bad V_DrawPatch x=%i y=%i patch.width=%i patch.height=%i topoffset=%i leftoffset=%i", x, y, patch->width, patch->height, patch->topoffset, patch->leftoffset);
+        I_Error("Bad V_DrawPatch");
     }
 #endif
 
@@ -828,7 +828,7 @@ void V_ScreenShot(char *format)
     {
     WritePNGfile(lbmname, I_VideoBuffer,
                  SCREENWIDTH, SCREENHEIGHT,
-                 W_CacheLumpName (DEH_String("PLAYPAL"), PU_CACHE));
+                 W_CacheLumpName ("PLAYPAL", PU_CACHE));
     }
     else
 #endif
@@ -836,7 +836,7 @@ void V_ScreenShot(char *format)
     // save the pcx file
     WritePCXfile(lbmname, I_VideoBuffer,
                  SCREENWIDTH, SCREENHEIGHT,
-                 W_CacheLumpName (DEH_String("PLAYPAL"), PU_CACHE));
+                 W_CacheLumpName ("PLAYPAL", PU_CACHE));
     }
 }
 

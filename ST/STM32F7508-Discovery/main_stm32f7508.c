@@ -25,7 +25,6 @@
 #include "main_stm32f7xx.h"
 #include "memusage.h"
 // Doom includes
-#include "doomgeneric.h"
 #include "doomkeys.h"
 
 /******************************************************************************
@@ -47,7 +46,7 @@
 __attribute__((section(".framebuffer1"))) uint32_t framebuffer1[FRAMEBUF_PIXELS];
 __attribute__((section(".framebuffer2"))) uint32_t framebuffer2[FRAMEBUF_PIXELS];
 extern LTDC_HandleTypeDef hLtdcHandler;
-extern pixel_t* DG_ScreenBuffer; // buffer for doom to draw to
+extern uint8_t* STM32_ScreenBuffer; // buffer for doom to draw to
 
 // UART
 UART_HandleTypeDef  huart1;

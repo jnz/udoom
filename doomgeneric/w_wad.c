@@ -39,7 +39,7 @@
 typedef struct
 {
     // Should be "IWAD" or "PWAD".
-    char		identification[4];		
+    char		identification[4];
     int			numlumps;
     int			infotableofs;
 } PACKEDATTR wadinfo_t;
@@ -57,16 +57,20 @@ typedef struct
 //
 
 // Location of each lump on disk.
-
-lumpinfo_t *lumpinfo;		
+lumpinfo_t *lumpinfo;
 unsigned int numlumps = 0;
 
 // Hash table for fast lookups
-
 static lumpinfo_t **lumphash;
 
-// Hash function used for lump names.
+// Variables for the reload hack: filename of the PWAD to reload, and the
+// lumps from WADs before the reload file, so we can resent numlumps and
+// load the file again.
+static wad_file_t *reloadhandle = NULL;
+static char *reloadname = NULL;
+static int reloadlump = -1;
 
+// Hash function used for lump names.
 unsigned int W_LumpNameHash(const char *s)
 {
     // This is the djb2 string hash function, modded to work on strings
@@ -77,7 +81,7 @@ unsigned int W_LumpNameHash(const char *s)
 
     for (i=0; i < 8 && s[i] != '\0'; ++i)
     {
-        result = ((result << 5) ^ result ) ^ toupper((int)s[i]);
+        result = ((result << 5) ^ result ) ^ toupper(s[i]);
     }
 
     return result;
@@ -93,7 +97,7 @@ static void ExtendLumpInfo(int newnumlumps)
 
     if (newlumpinfo == NULL)
     {
-	I_Error ("Couldn't realloc lumps: %u lumps (%uKB)", newnumlumps, newnumlumps*sizeof(lumpinfo_t)/1024);
+	I_Error ("Couldn't realloc lumpinfo");
     }
 
     // Copy over lumpinfo_t structures from the old array. If any of
@@ -148,65 +152,86 @@ wad_file_t *W_AddFile (char *filename)
     filelump_t *filerover;
     int newnumlumps;
 
-    // open the file and add to directory
+    // If the filename begins with a ~, it indicates that we should use the
+    // reload hack.
+    if (filename[0] == '~')
+    {
+        if (reloadname != NULL)
+        {
+            I_Error("Prefixing a WAD filename with '~' indicates that the "
+                    "WAD should be reloaded\n"
+                    "on each level restart, for use by level authors for "
+                    "rapid development. You\n"
+                    "can only reload one WAD file, and it must be the last "
+                    "file in the -file list.");
+        }
 
+        reloadname = strdup(filename);
+        reloadlump = numlumps;
+        ++filename;
+    }
+
+    // Open the file and add to directory
     wad_file = W_OpenFile(filename);
 
     if (wad_file == NULL)
     {
-		printf (" couldn't open %s\n", filename);
-		return NULL;
+	printf (" couldn't open %s\n", filename);
+	return NULL;
+    }
+
+    // If this is the reload file, we need to save the file handle so that we
+    // can close it later on when we do a reload.
+    if (reloadname)
+    {
+        reloadhandle = wad_file;
     }
 
     newnumlumps = numlumps;
 
     if (strcasecmp(filename+strlen(filename)-3 , "wad" ) )
     {
-    	// single lump file
+	// single lump file
 
         // fraggle: Swap the filepos and size here.  The WAD directory
         // parsing code expects a little-endian directory, so will swap
         // them back.  Effectively we're constructing a "fake WAD directory"
         // here, as it would appear on disk.
 
-		fileinfo = Z_Malloc(sizeof(filelump_t), PU_STATIC, 0);
-		fileinfo->filepos = LONG(0);
-		fileinfo->size = LONG(wad_file->length);
+	fileinfo = Z_Malloc(sizeof(filelump_t), PU_STATIC, 0);
+	fileinfo->filepos = LONG(0);
+	fileinfo->size = LONG(wad_file->length);
 
         // Name the lump after the base of the filename (without the
         // extension).
 
-		M_ExtractFileBase (filename, fileinfo->name);
-		newnumlumps++;
+	M_ExtractFileBase (filename, fileinfo->name);
+	newnumlumps++;
     }
     else 
     {
-    	// WAD file
+	// WAD file
         W_Read(wad_file, 0, &header, sizeof(header));
 
-		if (strncmp(header.identification,"IWAD",4))
-		{
-			// Homebrew levels?
-			if (strncmp(header.identification,"PWAD",4))
-			{
-			I_Error ("Wad file %s doesn't have IWAD "
-				 "or PWAD id\n", filename);
-			}
+	if (strncmp(header.identification,"IWAD",4))
+	{
+	    // Homebrew levels?
+	    if (strncmp(header.identification,"PWAD",4))
+	    {
+		I_Error ("Wad file %s doesn't have IWAD "
+			 "or PWAD id\n", filename);
+	    }
+	    
+	    // ???modifiedgame = true;		
+	}
 
-			// ???modifiedgame = true;
-		}
+	header.numlumps = LONG(header.numlumps);
+	header.infotableofs = LONG(header.infotableofs);
+	length = header.numlumps*sizeof(filelump_t);
+	fileinfo = Z_Malloc(length, PU_STATIC, 0);
 
-		header.numlumps = LONG(header.numlumps);
-		header.infotableofs = LONG(header.infotableofs);
-		length = header.numlumps*sizeof(filelump_t);
-		fileinfo = Z_Malloc(length, PU_STATIC, 0);
-
-        unsigned bytesread = W_Read(wad_file, header.infotableofs, fileinfo, length);
-        if (bytesread != length)
-        {
-            I_Error("Disk read error");
-        }
-        newnumlumps += header.numlumps;
+        W_Read(wad_file, header.infotableofs, fileinfo, length);
+	newnumlumps += header.numlumps;
     }
 
     // Increase size of numlumps array to accomodate the new file.
@@ -219,14 +244,14 @@ wad_file_t *W_AddFile (char *filename)
 
     for (i=startlump; i<numlumps; ++i)
     {
-		lump_p->wad_file = wad_file;
-		lump_p->position = LONG(filerover->filepos);
-		lump_p->size = LONG(filerover->size);
-			lump_p->cache = NULL;
-		strncpy(lump_p->name, filerover->name, 8);
+	lump_p->wad_file = wad_file;
+	lump_p->position = LONG(filerover->filepos);
+	lump_p->size = LONG(filerover->size);
+        lump_p->cache = NULL;
+	strncpy(lump_p->name, filerover->name, 8);
 
-			++lump_p;
-			++filerover;
+        ++lump_p;
+        ++filerover;
     }
 
     Z_Free(fileinfo);
@@ -312,7 +337,7 @@ int W_GetNumForName (char* name)
     int	i;
 
     i = W_CheckNumForName (name);
-
+    
     if (i < 0)
     {
         I_Error ("W_GetNumForName: %s not found!", name);
@@ -509,7 +534,7 @@ void W_Profile (void)
 	info[i][profilecount] = ch;
     }
     profilecount++;
-#if ORIGCODE
+	
     f = fopen ("waddump.txt","w");
     name[8] = 0;
 
@@ -532,7 +557,6 @@ void W_Profile (void)
 	fprintf (f,"\n");
     }
     fclose (f);
-#endif
 }
 
 
@@ -544,8 +568,7 @@ void W_GenerateHashTable(void)
 {
     unsigned int i;
 
-    // Free the old hash table, if there is one
-
+    // Free the old hash table, if there is one:
     if (lumphash != NULL)
     {
         Z_Free(lumphash);
@@ -571,6 +594,49 @@ void W_GenerateHashTable(void)
     }
 
     // All done!
+}
+
+// The Doom reload hack. The idea here is that if you give a WAD file to -file
+// prefixed with the ~ hack, that WAD file will be reloaded each time a new
+// level is loaded. This lets you use a level editor in parallel and make
+// incremental changes to the level you're working on without having to restart
+// the game after every change.
+// But: the reload feature is a fragile hack...
+void W_Reload(void)
+{
+    char *filename;
+    int i;
+
+    if (reloadname == NULL)
+    {
+        return;
+    }
+
+    // We must release any lumps being held in the PWAD we're about to reload:
+    for (i = reloadlump; i < numlumps; ++i)
+    {
+        if (lumpinfo[i].cache != NULL)
+        {
+            W_ReleaseLumpNum(i);
+        }
+    }
+
+    // Reset numlumps to remove the reload WAD file:
+    numlumps = reloadlump;
+
+    // Now reload the WAD file.
+    filename = reloadname;
+
+    W_CloseFile(reloadhandle);
+    reloadname = NULL;
+    reloadlump = -1;
+    reloadhandle = NULL;
+    W_AddFile(filename);
+    free(filename);
+
+    // The WAD directory has changed, so we have to regenerate the
+    // fast lookup hashtable:
+    W_GenerateHashTable();
 }
 
 // Lump names that are unique to particular game types. This lets us check

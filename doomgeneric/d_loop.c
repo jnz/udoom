@@ -33,11 +33,11 @@
 #include "m_fixed.h"
 
 #include "net_client.h"
-#include "net_gui.h"
+// #include "net_gui.h"
 #include "net_io.h"
 #include "net_query.h"
 #include "net_server.h"
-#include "net_sdl.h"
+// #include "net_sdl.h"
 #include "net_loop.h"
 
 // The complete set of data for a particular tic.
@@ -47,6 +47,12 @@ typedef struct
     ticcmd_t cmds[NET_MAXPLAYERS];
     boolean ingame[NET_MAXPLAYERS];
 } ticcmd_set_t;
+
+// Maximum time that we wait in TryRunTics() for netgame data to be
+// received before we bail out and render a frame anyway.
+// Vanilla Doom used 20 for this value, but we use a smaller value
+// instead for better responsiveness of the menu when we're stuck.
+#define MAX_NETGAME_STALL_TICS  5
 
 //
 // gametic is the tic about to (or currently being) run
@@ -307,7 +313,6 @@ void D_StartGameLoop(void)
     lasttime = GetAdjustedTime() / ticdup;
 }
 
-#if ORIGCODE
 //
 // Block until the game start message is received from the server.
 //
@@ -335,12 +340,9 @@ static void BlockUntilStart(net_gamesettings_t *settings,
     }
 }
 
-#endif
-
 void D_StartNetGame(net_gamesettings_t *settings,
                     netgame_startup_callback_t callback)
 {
-#if ORIGCODE
     int i;
 
     offsetms = 0;
@@ -436,26 +438,11 @@ void D_StartNetGame(net_gamesettings_t *settings,
     //{
     //    printf("Syncing netgames like Vanilla Doom.\n");
     //}
-#else
-    settings->consoleplayer = 0;
-	settings->num_players = 1;
-	settings->player_classes[0] = player_class;
-	settings->new_sync = 0;
-	settings->extratics = 1;
-	settings->ticdup = 1;
-
-	ticdup = settings->ticdup;
-	new_sync = settings->new_sync;
-#endif
 }
 
 boolean D_InitNetGame(net_connect_data_t *connect_data)
 {
     boolean result = false;
-#ifdef FEATURE_MULTIPLAYER
-    net_addr_t *addr = NULL;
-    int i;
-#endif
 
     // Call D_QuitNetGame on exit:
 
@@ -464,6 +451,8 @@ boolean D_InitNetGame(net_connect_data_t *connect_data)
     player_class = connect_data->player_class;
 
 #ifdef FEATURE_MULTIPLAYER
+    net_addr_t *addr = NULL;
+    int i;
 
     //!
     // @category net
@@ -763,7 +752,6 @@ void TryRunTics (void)
 	counts = 1;
 
     // wait for new tics if needed
-
     while (!PlayersInGame() || lowtic < gametic/ticdup + counts)
     {
 	NetUpdate ();
@@ -773,15 +761,19 @@ void TryRunTics (void)
 	if (lowtic < gametic/ticdup)
 	    I_Error ("TryRunTics: lowtic < gametic");
 
-        // Don't stay in this loop forever.  The menu is still running,
-        // so return to update the screen
+        // Still no tics to run? Sleep until some are available.
+        if (lowtic < gametic/ticdup + counts)
+        {
+            // If we're in a netgame, we might spin forever waiting for
+            // new network data to be received. So don't stay in here
+            // forever - give the menu a chance to work.
+            if (I_GetTime() / ticdup - entertic >= MAX_NETGAME_STALL_TICS)
+            {
+                return;
+            }
 
-	if (I_GetTime() / ticdup - entertic > 0)
-	{
-	    return;
-	}
-
-        I_Sleep(1);
+            I_Sleep(1);
+        }
     }
 
     // run the count * ticdup dics

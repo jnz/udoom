@@ -21,14 +21,18 @@
 #ifndef __DOOMTYPE__
 #define __DOOMTYPE__
 
+#if defined(_MSC_VER) && !defined(__cplusplus)
+#define inline __inline
+#endif
+
 // #define macros to provide functions missing in Windows.
 // Outside Windows, we use strings.h for str[n]casecmp.
 
 
 #ifdef _WIN32
 
-#define strcasecmp _stricmp
-#define strncasecmp _strnicmp
+#define strcasecmp stricmp
+#define strncasecmp strnicmp
 
 #else
 
@@ -47,7 +51,17 @@
 //
 
 #ifdef __GNUC__
+
+#ifdef __clang__
 #define PACKEDATTR __attribute__((packed))
+#else
+  #if defined(__MINGW32__) || defined(_WIN32)
+  #define PACKEDATTR __attribute__((packed, gcc_struct))
+  #else
+  #define PACKEDATTR __attribute__((packed))
+  #endif
+#endif
+
 #else
 #define PACKEDATTR
 #endif
@@ -72,9 +86,8 @@ typedef bool boolean;
 
 typedef enum 
 {
-    false	= 0,
-    true	= 1,
-	undef	= 0xFFFFFFFF
+    false, 
+    true
 } boolean;
 
 #endif
@@ -83,7 +96,7 @@ typedef uint8_t byte;
 
 #include <limits.h>
 
-#if defined(_WIN32) || defined(__DJGPP__)
+#ifdef _WIN32
 
 #define DIR_SEPARATOR '\\'
 #define DIR_SEPARATOR_S "\\"

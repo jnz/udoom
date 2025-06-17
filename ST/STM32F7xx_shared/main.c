@@ -20,7 +20,6 @@
 #include "stm32f7xx.h"
 
 #include "main_stm32f7xx.h"
-#include "doomgeneric.h"
 #include "doomkeys.h"
 #include "memusage.h"
 
@@ -50,6 +49,9 @@
 // UART
 static volatile uint8_t g_uart_rx_buf[UART_RX_BUF_SIZE];
 static volatile int g_uart_rx_buf_size; // number of bytes in g_uart_rx_buf
+
+// Framebuffer Pointer
+uint8_t* STM32_ScreenBuffer;
 
 /******************************************************************************
  * LOCAL DATA DEFINITIONS
@@ -82,6 +84,9 @@ static int map_ascii_to_doom(uint8_t c);
  * FUNCTION PROTOTYPES
  ******************************************************************************/
 
+extern int doom_main(int argc, char **argv);
+extern void doom_tick(void);
+
 /******************************************************************************
  * FUNCTION BODIES
  ******************************************************************************/
@@ -98,6 +103,8 @@ static void board_common_init_post(void)
     printf("Core frequency: %lu MHz\n", HAL_RCC_GetHCLKFreq() / 1000000);
     printf("Total stack size: %u bytes\n", stack_total());
     printf("Total heap size: %u bytes\n", heap_total());
+
+    STM32_ScreenBuffer = (uint8_t*)g_fblist[g_fbcur];
 }
 
 int main(void)
@@ -106,7 +113,7 @@ int main(void)
     board_common_init_post();
 
     char* argv[] = { "doom.exe" };
-    doomgeneric_Create(1, argv);
+    doom_main(1, argv);
     I_FramebufferClearAll();
     I_DoubleBufferEnable(1);
 
@@ -118,9 +125,9 @@ int main(void)
     {
         const uint32_t cyclestart = DWT->CYCCNT;
         __disable_irq();
-        DG_ScreenBuffer = (pixel_t*)g_fblist[g_fbcur]; // prepare the framebuffer for drawing
+        STM32_ScreenBuffer = (uint8_t*)g_fblist[g_fbcur]; // prepare the framebuffer for drawing
         __enable_irq();
-        doomgeneric_Tick();
+        doom_tick();
         fpscounter++;
 
         self_monitoring();
@@ -168,15 +175,8 @@ void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
     g_vsync_count++;
 }
 
-// called by Doom during init
-void DG_Init()
-{
-    // give Doom something to draw to
-    DG_ScreenBuffer = (pixel_t*)g_fblist[g_fbcur];
-}
-
-// called by Doom at the end of a frame
-void DG_DrawFrame()
+// called by I_FinishUpdate() to signal that the buffer is ready
+void STM32_SignalFrameReady()
 {
     g_frame_ready = 1; // indicate that we can swap the frame
 }
@@ -247,12 +247,12 @@ static int map_ascii_to_doom(uint8_t c)
         case 'd': return KEY_RIGHTARROW;
 
         // Strafing
-        case 'q': return KEY_STRAFE_L;
-        case 'e': return KEY_STRAFE_R;
+        case 'q': return ',';
+        case 'e': return '.';
 
         // Use & Fire
-        case 'z': return KEY_USE;      // default was space
-        case ' ': return KEY_FIRE;     // default was ctrl
+        case 'z': return ' ';        // default was space
+        case ' ': return KEY_RCTRL;  // default was ctrl
 
         // Common controls
         case '\r': return KEY_ENTER;

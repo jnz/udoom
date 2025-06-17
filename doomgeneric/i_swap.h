@@ -20,66 +20,37 @@
 #ifndef __I_SWAP__
 #define __I_SWAP__
 
-#ifdef FEATURE_SOUND
-
-
-#ifdef __DJGPP__
-
-
-#define SHORT(x)  ((signed short) (x))
-#define LONG(x)   ((signed int) (x))
-
-#define SYS_LITTLE_ENDIAN
-
-
-#else  // __DJGPP__
-
-
-#include <SDL_endian.h>
-
 // Endianess handling.
 // WAD files are stored little endian.
-
-// Just use SDL's endianness swapping functions.
 
 // These are deliberately cast to signed values; this is the behaviour
 // of the macros in the original source and some code relies on it.
 
-#define SHORT(x)  ((signed short) SDL_SwapLE16(x))
-#define LONG(x)   ((signed int) SDL_SwapLE32(x))
+#include <stdint.h>
 
-// Defines for checking the endianness of the system.
-
-#if SDL_BYTEORDER == SYS_LIL_ENDIAN
-#define SYS_LITTLE_ENDIAN
-#elif SDL_BYTEORDER == SYS_BIG_ENDIAN
-#define SYS_BIG_ENDIAN
-#endif
-
-// cosmito from lsdldoom
-#define doom_swap_s(x) \
-        ((short int)((((unsigned short int)(x) & 0x00ff) << 8) | \
-                              (((unsigned short int)(x) & 0xff00) >> 8))) 
-
-
-#if ( SDL_BYTEORDER == SDL_BIG_ENDIAN )
-#define doom_wtohs(x) doom_swap_s(x)
+// Always interpret input as little-endian, convert to host-endian, then cast to signed
+static inline int16_t SHORT(uint16_t x) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    #define SYS_LITTLE_ENDIAN
+    return (int16_t)x;
 #else
-#define doom_wtohs(x) (short int)(x)
+    #define SYS_BIG_ENDIAN
+    return (int16_t)((x << 8) | (x >> 8));
 #endif
+}
 
-
-#endif  // __DJGPP__
-
-
-#else  // FEATURE_SOUND
-	
-#define SHORT(x)  ((signed short) (x))
-#define LONG(x)   ((signed int) (x))
-
-#define SYS_LITTLE_ENDIAN
-
-#endif /* FEATURE_SOUND */
+static inline int32_t LONG(uint32_t x) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    return (int32_t)x;
+#else
+    return (int32_t)(
+        ((x & 0x000000FFU) << 24) |
+        ((x & 0x0000FF00U) << 8)  |
+        ((x & 0x00FF0000U) >> 8)  |
+        ((x & 0xFF000000U) >> 24)
+    );
+#endif
+}
 
 #endif
 

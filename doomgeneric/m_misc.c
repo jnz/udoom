@@ -38,7 +38,7 @@
 
 #include "doomtype.h"
 
-#include "deh_str.h"
+// #include "deh_str.h"
 
 #include "i_swap.h"
 #include "i_system.h"
@@ -57,9 +57,11 @@ void M_MakeDirectory(char *path)
 #ifdef _WIN32
     mkdir(path);
 #else
-    #ifndef USE_HAL_DRIVER
-        mkdir(path, 0755);
-    #endif
+#ifdef EMBEDDED
+    fprintf(stderr, "Warning: could not create directory %s\n", path);
+#else
+    mkdir(path, 0755);
+#endif
 #endif
 }
 
@@ -170,7 +172,7 @@ char *M_TempFile(char *s)
 {
     char *tempdir;
 
-#if defined(_WIN32) || defined(__DJGPP__)
+#ifdef _WIN32
 
     // Check the TEMP environment variable to find the location.
 
@@ -291,7 +293,6 @@ char *M_StrCaseStr(char *haystack, char *needle)
 // allocated.
 //
 
-#ifndef STM32F769xx
 char *M_StringDuplicate(const char *orig)
 {
     char *result;
@@ -306,7 +307,6 @@ char *M_StringDuplicate(const char *orig)
 
     return result;
 }
-#endif
 
 //
 // String replace function.

@@ -29,6 +29,7 @@
 
 // Enables multiplayer support (network games)
 
+// #define FEATURE_MULTIPLAYER 1
 #undef FEATURE_MULTIPLAYER
 
 // Enables sound output

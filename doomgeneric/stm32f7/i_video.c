@@ -8,21 +8,27 @@
    Doom for the STM32F7 microcontroller
 */
 
-#include "config.h"
-#include "v_video.h"
-#include "m_argv.h"
-#include "d_event.h"
-#include "d_main.h"
-#include "i_video.h"
-#include "z_zone.h"
-#include "tables.h"
-#include "doomkeys.h"
-#include "doomgeneric.h"
-#include "i_system.h"
-
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+
+#include "config.h"
+// #include "deh_str.h"
+#include "doomtype.h"
+#include "doomkeys.h"
+#include "i_joystick.h"
+#include "i_system.h"
+#include "i_swap.h"
+#include "i_timer.h"
+#include "i_video.h"
+#include "m_argv.h"
+#include "m_config.h"
+#include "m_misc.h"
+#include "tables.h"
+#include "v_video.h"
+#include "w_wad.h"
+#include "z_zone.h"
+
 
 #ifdef STM32F769xx
 #include "stm32f769i_discovery_lcd.h"
@@ -41,6 +47,7 @@ static byte* VideoBuffer2X = NULL;
 byte *I_VideoBuffer = NULL;
 boolean screensaver_mode = false;
 boolean screenvisible;
+int vanilla_keyboard_mapping = 1;
 float mouse_acceleration = 2.0;
 int mouse_threshold = 10;
 int usegamma = 4; // make it a bit brighter by default on the STM32 displays
@@ -77,7 +84,6 @@ static void scale_generic(const uint8_t* src, uint8_t* dst, int w, int h, float 
     }
 }
 
-__attribute__((optimize("O2", "unroll-loops")))
 static void scale_2x(const uint8_t* src, uint8_t* dst, int w, int h, float scale)
 {
     (void)scale;
@@ -176,8 +182,6 @@ void I_InitGraphics(void)
     }
 
     DMA2D_Init(); // is using fb_scaling
-    extern void I_InitInput(void);
-    I_InitInput();
 }
 
 void I_ShutdownGraphics(void)
@@ -218,14 +222,16 @@ static void BlitDoomFrame(const uint8_t *src, uint32_t *dst, int width, int heig
     }
 }
 
+extern void STM32_SignalFrameReady();
+extern uint8_t* STM32_ScreenBuffer;
 void I_FinishUpdate(void)
 {
-    BlitDoomFrame(I_VideoBuffer, (uint32_t *)DG_ScreenBuffer, SCREENWIDTH, SCREENHEIGHT);
-    DG_DrawFrame();
+    BlitDoomFrame(I_VideoBuffer, (uint32_t *)STM32_ScreenBuffer, SCREENWIDTH, SCREENHEIGHT);
+    STM32_SignalFrameReady();
 }
 
 void I_StartFrame(void) {}
-void I_GetEvent(void);
+void I_GetEvent(void) {}
 void I_StartTic(void) { I_GetEvent(); }
 void I_UpdateNoBlit(void) {}
 void I_ReadScreen(byte* scr) { memcpy(scr, I_VideoBuffer, SCREENWIDTH * SCREENHEIGHT); }
@@ -253,7 +259,7 @@ void I_SetPalette(byte* palette)
 int I_GetPaletteIndex(int r, int g, int b) { return 0; }
 void I_BeginRead(void) {}
 void I_EndRead(void) {}
-void I_SetWindowTitle(char *title) { DG_SetWindowTitle(title); }
+void I_SetWindowTitle(char *title) {}
 void I_GraphicsCheckCommandLine(void) {}
 void I_SetGrabMouseCallback(grabmouse_callback_t func) {}
 void I_EnableLoadingDisk(void) {}

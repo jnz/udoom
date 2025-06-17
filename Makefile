@@ -37,6 +37,7 @@ WAD_OBJ := $(OBJDIR)/doom1wad.o
 APP_SUBDIRS += \
 	./src \
 	./doomgeneric \
+	./doomgeneric/doom \
 	./doomgeneric/stm32f7 \
 	$(HAL_DIR)/Src \
 	ST/STM32F7xx_shared
@@ -46,6 +47,7 @@ APP_INCLUDE_PATH += \
   -I./inc \
   -I./ST/STM32F7xx_shared \
   -I./doomgeneric \
+  -I./doomgeneric/doom \
   -I$(CMSIS_DIR)/Include \
   -I$(CMSIS_DIR)/Device/ST/STM32F7xx/Include \
   -I$(HAL_DIR)/Inc
@@ -120,6 +122,7 @@ CROSS_COMPILE   ?= arm-none-eabi-
 ARCH_FLAGS      += -mcpu=cortex-m7 -mthumb -mfloat-abi=hard -mfpu=fpv5-d16 -mlittle-endian --specs=nosys.specs
 APP_CPP_FLAGS   += -nostdlib -ffreestanding
 APP_CPP_FLAGS   += -D_DEFAULT_SOURCE  # only to enable strdup()
+APP_CPP_FLAGS   += -DEMBEDDED
 
 # -MMD: to autogenerate dependencies for make
 # -MP: These dummy rules work around errors make gives if you remove header
@@ -137,7 +140,7 @@ APP_CPP_FLAGS   += -D_DEFAULT_SOURCE  # only to enable strdup()
 # --specs=nosys.specs: semihosting disabled
 
 # GCC compiler warnings
-GCC_STACK_WARNING_BYTES := 1024
+GCC_STACK_WARNING_BYTES := 2048
 WARNING_CHECKS  := -Wall
 WARNING_CHECKS  += -Wframe-larger-than=$(GCC_STACK_WARNING_BYTES)
 WARNING_CHECKS  += -Wstack-usage=$(GCC_STACK_WARNING_BYTES)

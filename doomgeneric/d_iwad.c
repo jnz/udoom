@@ -16,14 +16,12 @@
 //     to the IWAD type.
 //
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
 
-#include "config.h"
-#include "deh_str.h"
+// #include "deh_str.h"
 #include "doomkeys.h"
 #include "d_iwad.h"
 #include "i_system.h"
@@ -144,22 +142,53 @@ static registry_value_t uninstall_values[] =
     },
 };
 
-// Value installed by the Collector's Edition when it is installed
+// Values installed by the GOG.com and Collector's Edition versions
 
-static registry_value_t collectors_edition_value =
+static registry_value_t root_path_keys[] =
 {
-    HKEY_LOCAL_MACHINE,
-    SOFTWARE_KEY "\\Activision\\DOOM Collector's Edition\\v1.0",
-    "INSTALLPATH",
+    // Doom Collector's Edition
+
+    {
+        HKEY_LOCAL_MACHINE,
+        SOFTWARE_KEY "\\Activision\\DOOM Collector's Edition\\v1.0",
+        "INSTALLPATH",
+    },
+
+    // Ultimate Doom
+
+    {
+        HKEY_LOCAL_MACHINE,
+        SOFTWARE_KEY "\\GOG.com\\Games\\1435827232",
+        "PATH",
+    },
+
+    // Doom II
+
+    {
+        HKEY_LOCAL_MACHINE,
+        SOFTWARE_KEY "\\GOG.com\\Games\\1435848814",
+        "PATH",
+    },
+
+    // Final Doom
+
+    {
+        HKEY_LOCAL_MACHINE,
+        SOFTWARE_KEY "\\GOG.com\\Games\\1435848742",
+        "PATH",
+    },
 };
 
 // Subdirectories of the above install path, where IWADs are installed.
 
-static char *collectors_edition_subdirs[] = 
+static char *root_path_subdirs[] =
 {
+    ".",
     "Doom2",
     "Final Doom",
     "Ultimate Doom",
+    "TNT",
+    "Plutonia",
 };
 
 // Location where Steam is installed
@@ -185,6 +214,10 @@ static char *steam_install_subdirs[] =
     // From Doom 3: BFG Edition:
 
     "steamapps\\common\\DOOM 3 BFG Edition\\base\\wads",
+
+    // From Strife: Veteran Edition:
+
+    "steamapps\\common\\Strife",
 };
 
 #define STEAM_BFG_GUS_PATCHES \
@@ -266,30 +299,34 @@ static void CheckUninstallStrings(void)
     }
 }
 
-// Check for Doom: Collector's Edition
+// Check for GOG.com and Doom: Collector's Edition
 
-static void CheckCollectorsEdition(void)
+static void CheckInstallRootPaths(void)
 {
-    char *install_path;
-    char *subpath;
     unsigned int i;
 
-    install_path = GetRegistryString(&collectors_edition_value);
-
-    if (install_path == NULL)
+    for (i=0; i<arrlen(root_path_keys); ++i)
     {
-        return;
+        char *install_path;
+        char *subpath;
+        unsigned int j;
+
+        install_path = GetRegistryString(&root_path_keys[i]);
+
+        if (install_path == NULL)
+        {
+            continue;
+        }
+
+        for (j=0; j<arrlen(root_path_subdirs); ++j)
+        {
+            subpath = M_StringJoin(install_path, DIR_SEPARATOR_S,
+                                   root_path_subdirs[j], NULL);
+            AddIWADDir(subpath);
+        }
+
+        free(install_path);
     }
-
-    for (i=0; i<arrlen(collectors_edition_subdirs); ++i)
-    {
-        subpath = M_StringJoin(install_path, DIR_SEPARATOR_S,
-                               collectors_edition_subdirs[i], NULL);
-
-        AddIWADDir(subpath);
-    }
-
-    free(install_path);
 }
 
 
@@ -330,7 +367,7 @@ static void CheckSteamGUSPatches(void)
     int len;
 
     // Already configured? Don't stomp on the user's choices.
-    current_path = M_GetStrVariable("gus_patch_path");
+    current_path = M_GetStringVariable("gus_patch_path");
     if (current_path != NULL && strlen(current_path) > 0)
     {
         return;
@@ -415,7 +452,7 @@ static char *CheckDirectoryHasIWAD(char *dir, char *iwadname)
 
     if (DirIsFile(dir, iwadname) && M_FileExists(dir))
     {
-        return strdup(dir);
+        return M_StringDuplicate(dir);
     }
 
     // Construct the full path to the IWAD if it is located in
@@ -423,14 +460,12 @@ static char *CheckDirectoryHasIWAD(char *dir, char *iwadname)
 
     if (!strcmp(dir, "."))
     {
-        filename = strdup(iwadname);
+        filename = M_StringDuplicate(iwadname);
     }
     else
     {
         filename = M_StringJoin(dir, DIR_SEPARATOR_S, iwadname, NULL);
     }
-
-    printf("Trying IWAD file:%s\n", filename);
 
     if (M_FileExists(filename))
     {
@@ -457,7 +492,7 @@ static char *SearchDirectoryForIWAD(char *dir, int mask, GameMission_t *mission)
             continue;
         }
 
-        filename = CheckDirectoryHasIWAD(dir, DEH_String(iwads[i].name));
+        filename = CheckDirectoryHasIWAD(dir, iwads[i].name);
 
         if (filename != NULL)
         {
@@ -509,57 +544,96 @@ static GameMission_t IdentifyIWADByName(char *name, int mask)
     return mission;
 }
 
-#if ORIGCODE
-//
-// Add directories from the list in the DOOMWADPATH environment variable.
-//
-
-static void AddDoomWadPath(void)
+// Add IWAD directories parsed from splitting a path string containing
+// paths separated by PATH_SEPARATOR. 'suffix' is a string to concatenate
+// to the end of the paths before adding them.
+static void AddIWADPath(char *path, char *suffix)
 {
-    char *doomwadpath;
-    char *p;
+    char *left, *p;
 
-    // Check the DOOMWADPATH environment variable.
-
-    doomwadpath = getenv("DOOMWADPATH");
-
-    if (doomwadpath == NULL)
-    {
-        return;
-    }
-
-    doomwadpath = strdup(doomwadpath);
-
-    // Add the initial directory
-
-    AddIWADDir(doomwadpath);
+    path = M_StringDuplicate(path);
 
     // Split into individual dirs within the list.
-
-    p = doomwadpath;
+    left = path;
 
     for (;;)
     {
-        p = strchr(p, PATH_SEPARATOR);
-
+        p = strchr(left, PATH_SEPARATOR);
         if (p != NULL)
         {
-            // Break at the separator and store the right hand side
+            // Break at the separator and use the left hand side
             // as another iwad dir
-  
             *p = '\0';
-            p += 1;
 
-            AddIWADDir(p);
+            AddIWADDir(M_StringJoin(left, suffix, NULL));
+            left = p + 1;
         }
         else
         {
             break;
         }
     }
+
+    AddIWADDir(M_StringJoin(left, suffix, NULL));
+
+    free(path);
 }
 
-#endif
+// Add standard directories where IWADs are located on Unix systems.
+// To respect the freedesktop.org specification we support overriding
+// using standard environment variables. See the XDG Base Directory
+// Specification:
+// <http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html>
+static void AddXdgDirs(void)
+{
+    char *env, *tmp_env;
+
+    // Quote:
+    // > $XDG_DATA_HOME defines the base directory relative to which
+    // > user specific data files should be stored. If $XDG_DATA_HOME
+    // > is either not set or empty, a default equal to
+    // > $HOME/.local/share should be used.
+    env = getenv("XDG_DATA_HOME");
+    tmp_env = NULL;
+
+    if (env == NULL)
+    {
+        char *homedir = getenv("HOME");
+        if (homedir == NULL)
+        {
+            homedir = "/";
+        }
+
+        tmp_env = M_StringJoin(homedir, "/.local/share", NULL);
+        env = tmp_env;
+    }
+
+    // We support $XDG_DATA_HOME/games/doom (which will usually be
+    // ~/.local/share/games/doom) as a user-writeable extension to
+    // the usual /usr/share/games/doom location.
+    AddIWADDir(M_StringJoin(env, "/games/doom", NULL));
+    free(tmp_env);
+
+    // Quote:
+    // > $XDG_DATA_DIRS defines the preference-ordered set of base
+    // > directories to search for data files in addition to the
+    // > $XDG_DATA_HOME base directory. The directories in $XDG_DATA_DIRS
+    // > should be seperated with a colon ':'.
+    // >
+    // > If $XDG_DATA_DIRS is either not set or empty, a value equal to
+    // > /usr/local/share/:/usr/share/ should be used.
+    env = getenv("XDG_DATA_DIRS");
+    if (env == NULL)
+    {
+        // (Trailing / omitted from paths, as it is added below)
+        env = "/usr/local/share:/usr/share";
+    }
+
+    // The "standard" location for IWADs on Unix that is supported by most
+    // source ports is /usr/share/games/doom - we support this through the
+    // XDG_DATA_DIRS mechanism, through which it can be overridden.
+    AddIWADPath(env, "/games/doom");
+}
 
 //
 // Build a list of IWAD files
@@ -567,8 +641,7 @@ static void AddDoomWadPath(void)
 
 static void BuildIWADDirList(void)
 {
-#if ORIGCODE
-    char *doomwaddir;
+    char *env;
 
     if (iwad_dirs_built)
     {
@@ -576,28 +649,28 @@ static void BuildIWADDirList(void)
     }
 
     // Look in the current directory.  Doom always does this.
-
     AddIWADDir(".");
 
     // Add DOOMWADDIR if it is in the environment
-
-    doomwaddir = getenv("DOOMWADDIR");
-
-    if (doomwaddir != NULL)
+    env = getenv("DOOMWADDIR");
+    if (env != NULL)
     {
-        AddIWADDir(doomwaddir);
+        AddIWADDir(env);
     }
 
-    // Add dirs from DOOMWADPATH
-
-    AddDoomWadPath();
+    // Add dirs from DOOMWADPATH:
+    env = getenv("DOOMWADPATH");
+    if (env != NULL)
+    {
+        AddIWADPath(env, "");
+    }
 
 #ifdef _WIN32
 
     // Search the registry and find where IWADs have been installed.
 
     CheckUninstallStrings();
-    CheckCollectorsEdition();
+    CheckInstallRootPaths();
     CheckSteamEdition();
     CheckDOSDefaults();
 
@@ -606,20 +679,12 @@ static void BuildIWADDirList(void)
     CheckSteamGUSPatches();
 
 #else
-
-    // Standard places where IWAD files are installed under Unix.
-
-    AddIWADDir("/usr/share/games/doom");
-    AddIWADDir("/usr/local/share/games/doom");
-
+    AddXdgDirs();
 #endif
-#else
-    AddIWADDir (FILES_DIR);
 
     // Don't run this function again.
 
     iwad_dirs_built = true;
-#endif
 }
 
 //
@@ -650,7 +715,7 @@ char *D_FindWADByName(char *name)
 
         if (DirIsFile(iwad_dirs[i], name) && M_FileExists(iwad_dirs[i]))
         {
-            return strdup(iwad_dirs[i]);
+            return M_StringDuplicate(iwad_dirs[i]);
         }
 
         // Construct a string for the full path
@@ -735,8 +800,6 @@ char *D_FindIWAD(int mask, GameMission_t *mission)
     else
     {
         // Search through the list and look for an IWAD
-
-        printf("-iwad not specified, trying a few iwad names\n");
 
         result = NULL;
 

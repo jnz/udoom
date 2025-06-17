@@ -28,7 +28,6 @@
 /* </mass storage> */
 
 // Doom includes
-#include "doomgeneric.h"
 #include "doomkeys.h"
 
 /******************************************************************************
@@ -52,7 +51,7 @@
 __attribute__((section(".framebuffer1"))) uint32_t framebuffer1[FRAMEBUF_PIXELS];
 __attribute__((section(".framebuffer2"))) uint32_t framebuffer2[FRAMEBUF_PIXELS];
 extern LTDC_HandleTypeDef hltdc_discovery;
-extern pixel_t* DG_ScreenBuffer; // 320x200 buffer for doom (8bpp)
+extern uint8_t* STM32_ScreenBuffer; // 320x200 buffer for doom (8bpp)
 
 // UART
 UART_HandleTypeDef  huart1;

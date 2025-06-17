@@ -25,7 +25,7 @@
 
 #include "config.h"
 
-#include "deh_str.h"
+// #include "deh_str.h"
 #include "doomtype.h"
 #include "m_argv.h"
 #include "m_config.h"
@@ -65,7 +65,7 @@ byte *I_ZoneBase (int *size)
 
 void I_PrintBanner(char *msg)
 {
-
+    printf("%s\n", msg);
 }
 
 void I_PrintDivider(void)
@@ -75,7 +75,7 @@ void I_PrintDivider(void)
 
 void I_PrintStartupBanner(char *gamedescription)
 {
-
+    printf("%s\n", gamedescription);
 }
 
 //
