@@ -69,6 +69,8 @@ void I_Sleep(int ms)
 
 void I_WaitVBL(int count)
 {
+    // Choco Doom is not using I_WaitVBL, but it would be the right place to
+    // wait for the VSYNC callback
     I_Sleep((count * 1000) / 70);
 }
 
