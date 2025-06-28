@@ -1213,7 +1213,8 @@ void D_DoomMain (void)
     if (M_CheckParm("-dedicated") > 0)
     {
         printf("Dedicated server mode.\n");
-        NET_DedicatedServer();
+        I_Error("This version does not support dedicated server mode.\n");
+        // NET_DedicatedServer();
 
         // Never returns
     }

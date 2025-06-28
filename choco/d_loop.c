@@ -37,7 +37,7 @@
 #include "net_io.h"
 #include "net_query.h"
 #include "net_server.h"
-// #include "net_sdl.h"
+extern net_module_t net_sdl_module;
 #include "net_loop.h"
 
 // The complete set of data for a particular tic.

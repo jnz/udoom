@@ -21,8 +21,10 @@
 #include <stdio.h>
 
 #include "doomtype.h"
+#include "doomfeatures.h"
 #include "i_system.h"
 #include "m_argv.h"
+#include "net_client.h"
 
 //
 // D_DoomMain()
@@ -42,7 +44,7 @@ void NET_WaitForLaunch(void)
 
         if (!net_client_connected)
         {
-            NVIC_SystemReset();
+            I_Error("Lost connection to server");
         }
     }
 
