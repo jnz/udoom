@@ -112,8 +112,8 @@ int main(void)
     I_BoardInit();
     board_common_init_post();
 
-    char* argv[] = { "doom.exe" };
-    doom_main(1, argv);
+    char* argv[] = { "doom.exe", "-privateserver" };
+    doom_main(sizeof(argv) / sizeof(argv[0]), argv);
     I_FramebufferClearAll();
     I_DoubleBufferEnable(1);
 

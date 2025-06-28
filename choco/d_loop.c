@@ -463,6 +463,7 @@ boolean D_InitNetGame(net_connect_data_t *connect_data)
     if (M_CheckParm("-server") > 0
      || M_CheckParm("-privateserver") > 0)
     {
+        printf("Starting server.\n");
         NET_SV_Init();
         NET_SV_AddModule(&net_loop_server_module);
         NET_SV_AddModule(&net_sdl_module);
@@ -504,6 +505,7 @@ boolean D_InitNetGame(net_connect_data_t *connect_data)
 
         if (i > 0)
         {
+            printf("Client activated.\n");
             net_sdl_module.InitClient();
             addr = net_sdl_module.ResolveAddress(myargv[i+1]);
 

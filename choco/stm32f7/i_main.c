@@ -46,6 +46,9 @@ void NET_WaitForLaunch(void)
         {
             I_Error("Lost connection to server");
         }
+
+        // Test to see if the server and loopback client are working.
+        NET_CL_LaunchGame();
     }
 
 }
