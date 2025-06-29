@@ -260,12 +260,15 @@ static void NET_SV_AssignPlayers(void)
 
 // Returns the number of players currently connected.
 
-static int NET_SV_NumPlayers(void)
+int NET_SV_NumPlayers(void)
 {
     int i;
-    int result;
+    int result = 0;
 
-    result = 0;
+    if (!server_initialized)
+    {
+        return 0;
+    }
 
     for (i=0; i<NET_MAXPLAYERS; ++i)
     {
@@ -280,10 +283,15 @@ static int NET_SV_NumPlayers(void)
 
 // Returns the number of players ready to start the game.
 
-static int NET_SV_NumReadyPlayers(void)
+int NET_SV_NumReadyPlayers(void)
 {
     int result = 0;
     int i;
+
+    if (!server_initialized)
+    {
+        return 0;
+    }
 
     for (i = 0; i < MAXNETNODES; ++i)
     {

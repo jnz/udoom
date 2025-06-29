@@ -113,6 +113,7 @@ int main(void)
     board_common_init_post();
 
     char* argv[] = { "doom.exe", "-privateserver" };
+    // char* argv[] = { "doom.exe", "-connect",  "localhost" };
     doom_main(sizeof(argv) / sizeof(argv[0]), argv);
     I_FramebufferClearAll();
     I_DoubleBufferEnable(1);

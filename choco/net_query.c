@@ -540,14 +540,14 @@ static void NET_Query_QueryLoop(net_query_callback_t callback, void *user_data)
     }
 }
 
+extern net_module_t net_sdl_module;
 void NET_Query_Init(void)
 {
     if (query_context == NULL)
     {
         query_context = NET_NewContext();
-        // NET_AddModule(query_context, &net_sdl_module);
-        //net_sdl_module.InitClient();
-#warning "Add module later here"
+        NET_AddModule(query_context, &net_sdl_module);
+        net_sdl_module.InitClient();
     }
 
     free(targets);

@@ -980,10 +980,13 @@ boolean NET_CL_Connect(net_addr_t *addr, net_connect_data_t *data)
 
         // time out after 5 seconds
 
+#warning "no timeout"
+        /*
         if (nowtime - start_time > 5000)
         {
             break;
         }
+        */
 
         // run client code
 

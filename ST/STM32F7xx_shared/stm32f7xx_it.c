@@ -47,6 +47,8 @@ static LTDC_HandleTypeDef* phltdc = &hLtdcHandler;
 extern SD_HandleTypeDef uSdHandle;
 extern UART_HandleTypeDef huart1;
 extern DMA2D_HandleTypeDef hdma2d;
+extern UART_HandleTypeDef huart6;
+extern DMA_HandleTypeDef hdma_usart6_rx;
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
@@ -100,10 +102,10 @@ void MemManage_Handler(void)
   */
 void BusFault_Handler(void)
 {
-  /* Go to infinite loop when Bus Fault exception occurs */
-  while (1)
-  {
-  }
+    /* Go to infinite loop when Bus Fault exception occurs */
+    while (1)
+    {
+    }
 }
 
 /**
@@ -113,10 +115,10 @@ void BusFault_Handler(void)
   */
 void UsageFault_Handler(void)
 {
-  /* Go to infinite loop when Usage Fault exception occurs */
-  while (1)
-  {
-  }
+    /* Go to infinite loop when Usage Fault exception occurs */
+    while (1)
+    {
+    }
 }
 
 /**
@@ -153,7 +155,7 @@ void PendSV_Handler(void)
   */
 void SysTick_Handler(void)
 {
-  HAL_IncTick();
+    HAL_IncTick();
 }
 
 /******************************************************************************/
@@ -230,6 +232,16 @@ void BSP_SDMMC_IRQHandler(void)
 void USART1_IRQHandler(void)
 {
     HAL_UART_IRQHandler(&huart1);
+}
+
+void USART6_IRQHandler(void)
+{
+    HAL_UART_IRQHandler(&huart6);
+}
+
+void DMA2_Stream1_IRQHandler(void)
+{
+    HAL_DMA_IRQHandler(&hdma_usart6_rx);
 }
 
 /**

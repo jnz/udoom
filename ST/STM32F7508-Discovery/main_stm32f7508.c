@@ -295,6 +295,31 @@ static void MX_USART1_UART_Init(void)
     HAL_UART_Receive_IT(&huart1, (uint8_t *)&g_uart_rx_byte, 1);
 }
 
+void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
+{
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    if (uartHandle->Instance == USART6)
+    {
+        __HAL_RCC_USART6_CLK_ENABLE();
+        __HAL_RCC_GPIOC_CLK_ENABLE();
+
+        // USART6 TX (PC6) C13 D1
+        GPIO_InitStruct.Pin = GPIO_PIN_6;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Pull = GPIO_PULLUP;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+        GPIO_InitStruct.Alternate = GPIO_AF8_USART6;
+        HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+        // USART6 RX (PC7) C13 D0
+        GPIO_InitStruct.Pin = GPIO_PIN_7;
+        HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+        HAL_NVIC_SetPriority(USART6_IRQn, 0, 0);
+        HAL_NVIC_EnableIRQ(USART6_IRQn);
+    }
+}
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
     if (huart->Instance == USART1)

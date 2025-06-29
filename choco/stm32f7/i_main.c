@@ -35,6 +35,8 @@
 void D_DoomMain (void);
 
 #ifdef FEATURE_MULTIPLAYER
+#warning "make this nice"
+extern int NET_SV_NumReadyPlayers(void);
 void NET_WaitForLaunch(void)
 {
     while(net_waiting_for_launch)
@@ -47,8 +49,10 @@ void NET_WaitForLaunch(void)
             I_Error("Lost connection to server");
         }
 
-        // Test to see if the server and loopback client are working.
-        NET_CL_LaunchGame();
+        if (NET_SV_NumReadyPlayers() > 0)
+        {
+            NET_CL_LaunchGame();
+        }
     }
 
 }
