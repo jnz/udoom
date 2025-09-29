@@ -26,8 +26,6 @@ BOARD ?= STM32F769I_DISCO
 
 APPNAME         := firmware
 OBJDIR          := build
-CMSIS_DIR       := ST/Drivers/CMSIS
-HAL_DIR         := ST/Drivers/STM32F7xx_HAL_Driver
 
 # Optional WAD embed for STM32F7508_DK
 WAD_INPUT := wad/DOOM1.WAD
@@ -37,20 +35,13 @@ WAD_OBJ := $(OBJDIR)/doom1wad.o
 APP_SUBDIRS += \
 	./src \
 	./choco \
-	./choco/doom \
-	./choco/stm32f7 \
-	$(HAL_DIR)/Src \
-	ST/STM32F7xx_shared
+	./choco/doom
 
 # Include directories
 APP_INCLUDE_PATH += \
   -I./inc \
-  -I./ST/STM32F7xx_shared \
   -I./choco \
-  -I./choco/doom \
-  -I$(CMSIS_DIR)/Include \
-  -I$(CMSIS_DIR)/Device/ST/STM32F7xx/Include \
-  -I$(HAL_DIR)/Inc
+  -I./choco/doom
 
 # =======================================================================
 # STM32F769I Discovery Board
@@ -58,9 +49,15 @@ APP_INCLUDE_PATH += \
 
 ifeq ($(BOARD),STM32F769I_DISCO)
 
+CMSIS_DIR := ST/Drivers/CMSIS
+HAL_DIR   := ST/Drivers/STM32F7xx_HAL_Driver
+
 LINKER_SCRIPT   := ST/STM32F769I-Discovery/STM32F769NIHx_FLASH.ld
 APP_CPP_FLAGS   += -DSTM32F769xx -DUSE_HAL_DRIVER -DUSE_FULL_LL_DRIVER
 APP_SUBDIRS += \
+	./choco/stm32f7 \
+	$(HAL_DIR)/Src \
+	ST/STM32F7xx_shared \
 	./ST/STM32F7xx_shared/storage \
 	./ST/STM32F7xx_shared/storage/FatFs \
 	ST/STM32F769I-Discovery \
@@ -69,14 +66,20 @@ APP_SUBDIRS += \
 	ST/Drivers/BSP/Components/otm8009a/
 
 APP_INCLUDE_PATH += \
+	-I$(CMSIS_DIR)/Include \
+	-I$(CMSIS_DIR)/Device/ST/STM32F7xx/Include \
+	-I$(HAL_DIR)/Inc \
 	-IST/Drivers/BSP/STM32F769I-Discovery \
 	-IST/STM32F7xx_shared/storage/FatFs \
-	-IST/STM32F769I-Discovery
+	-IST/STM32F769I-Discovery \
+	-IST/STM32F7xx_shared
 
 S_STARTUP := startup_stm32f769xx
 S_SRC += ST/STM32F769I-Discovery/$(S_STARTUP).s
 
 FLASH_SCRIPT := flash
+
+ARCH_FLAGS      += -mcpu=cortex-m7 -mthumb -mfloat-abi=hard -mfpu=fpv5-d16 -mlittle-endian --specs=nosys.specs
 
 endif
 
@@ -85,22 +88,69 @@ endif
 # =======================================================================
 
 ifeq ($(BOARD),STM32F7508_DK)
+
+CMSIS_DIR       := ST/Drivers/CMSIS
+HAL_DIR         := ST/Drivers/STM32F7xx_HAL_Driver
+
 LINKER_SCRIPT   := ST/STM32F7508-Discovery/STM32F750N8Hx_FLASH.ld
 APP_CPP_FLAGS   += -DSTM32F750xx -DUSE_HAL_DRIVER -DUSE_FULL_LL_DRIVER -DWAD_EMBEDDED
 APP_SUBDIRS += \
+	./choco/stm32f7 \
+	$(HAL_DIR)/Src \
+	ST/STM32F7xx_shared \
 	ST/STM32F7508-Discovery \
 	ST/Drivers/BSP/STM32F7508-Discovery \
 	ST/Drivers/BSP/Components/rk043fn48h
 
 APP_INCLUDE_PATH += \
+	-I$(CMSIS_DIR)/Include \
+	-I$(CMSIS_DIR)/Device/ST/STM32F7xx/Include \
+	-I$(HAL_DIR)/Inc \
 	-IST/Drivers/BSP/STM32F7508-Discovery \
-	-IST/STM32F7508-Discovery
+	-IST/STM32F7508-Discovery \
+	-IST/STM32F7xx_shared
 
 S_STARTUP := startup_stm32f750xx
 S_SRC += ST/STM32F7508-Discovery/$(S_STARTUP).s
 
 WAD_ENABLED := 1
 FLASH_SCRIPT := flash_qspi
+
+ARCH_FLAGS      += -mcpu=cortex-m7 -mthumb -mfloat-abi=hard -mfpu=fpv5-d16 -mlittle-endian --specs=nosys.specs
+
+endif
+
+# =======================================================================
+# STM32N6570 Discovery Kit
+# =======================================================================
+
+ifeq ($(BOARD),STM32N6570_DK)
+
+CMSIS_DIR       := STN6/Drivers/CMSIS
+HAL_DIR         := STN6/Drivers/STM32N6xx_HAL_Driver
+
+LINKER_SCRIPT   := STN6/STM32N6570-DK/STM32N657XX_LRUN_ns.ld
+APP_CPP_FLAGS   += -DSTM32N657xx -DUSE_HAL_DRIVER -DUSE_FULL_LL_DRIVER
+
+APP_SUBDIRS += \
+	./choco/stm32n6 \
+	$(HAL_DIR)/Src \
+	STN6/Drivers/BSP/STM32N6570-DK \
+	STN6/STM32N6xx_shared \
+	STN6/STM32N6570-DK
+
+APP_INCLUDE_PATH += \
+	-I$(CMSIS_DIR)/Include \
+	-I$(CMSIS_DIR)/Device/ST/STM32N6xx/Include \
+	-I$(HAL_DIR)/Inc \
+	-ISTN6/Drivers/BSP/STM32N6570-DK \
+	-ISTN6/STM32N6570-DK
+
+S_STARTUP := startup_stm32n657xx
+S_SRC += STN6/STM32N6570-DK/$(S_STARTUP).s
+
+FLASH_SCRIPT := flash_ram
+ARCH_FLAGS      += -mcpu=cortex-m55 -mthumb -mfloat-abi=hard -mfpu=fpv5-d16 -mlittle-endian --specs=nosys.specs
 
 endif
 
@@ -119,7 +169,6 @@ APP_CPP_FLAGS   += -fno-strict-aliasing -fno-math-errno
 ODFLAGS         := -x --syms
 
 CROSS_COMPILE   ?= arm-none-eabi-
-ARCH_FLAGS      += -mcpu=cortex-m7 -mthumb -mfloat-abi=hard -mfpu=fpv5-d16 -mlittle-endian --specs=nosys.specs
 APP_CPP_FLAGS   += -nostdlib -ffreestanding
 APP_CPP_FLAGS   += -D_DEFAULT_SOURCE  # only to enable strdup()
 APP_CPP_FLAGS   += -DEMBEDDED
